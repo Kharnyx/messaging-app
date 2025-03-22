@@ -1,0 +1,297 @@
+<!-- public/src/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat System</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div class="loading-container" id="loading-container">
+      <div class="loader"></div>
+      <h1 id="loading-message">Connecting To Server...</h1>
+    </div>
+
+    <div class="chat-container" id="chat-container" style="display: none">
+      <!-- EMOJI PICKER -->
+
+      <div id="emoji-menu">
+        <div class="menus">
+          <button class="tab" id="smileys-tab">
+            <i class="fa-regular fa-face-smile"></i>
+          </button>
+          <button class="tab" id="animals-tab">
+            <i class="fa-solid fa-paw"></i>
+          </button>
+          <button class="tab" id="people-tab">
+            <i class="fas fa-user"></i>
+          </button>
+          <button class="tab" id="celebrations-tab">
+            <i class="fa-solid fa-gift"></i>
+          </button>
+          <button class="tab" id="food-tab">
+            <i class="fa-solid fa-apple-whole"></i>
+          </button>
+          <button class="tab" id="transport-tab">
+            <i class="fa-solid fa-car"></i>
+          </button>
+          <button class="tab" id="symbols-tab">
+            <i class="fa-solid fa-heart"></i>
+          </button>
+        </div>
+        <div id="emoji-picker">
+          <div class="tab-content" id="smileys-content"></div>
+          <div class="tab-content" id="animals-content"></div>
+          <div class="tab-content" id="people-content"></div>
+          <div class="tab-content" id="celebrations-content"></div>
+          <div class="tab-content" id="food-content"></div>
+          <div class="tab-content" id="transport-content"></div>
+          <div class="tab-content" id="symbols-content"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+
+      <div class="overlay" id="settings-overlay"></div>
+      <div class="settings-panel" id="settings-panel">
+        <div class="settings-header" id="settings-header">
+          <h2 id="category-title">Settings</h2>
+        </div>
+
+        <div class="overlay" id="sub-popup-overlay"></div>
+
+        <div class="settings-body" id="settings-body">
+          <div class="scroll-shadow" id="settings-body-shadow"></div>
+          <div class="current-account">
+            <h3 id="logged-in-username">ACCOUNT (Not logged in)</h3>
+          </div>
+
+          <!-- PROFILE CONTENT -->
+          <div class="settings-content" id="profile-content">
+            <div class="username-options">
+              <h3 id="settings-username">USERNAME</h3>
+              <button class="btn-rect" id="change-username-button">
+                Change
+              </button>
+            </div>
+          </div>
+
+          <!-- ACCOUNT CONTENT -->
+          <div class="settings-content" id="account-content">
+            <h3 id="login-signup-header">Log in</h3>
+
+            <div class="account-details" id="account-details">
+              <h4 id="account-details-username"><b>Username:</b> USERNAME</h4>
+              <h4 id="account-details-created-date">
+                <b>Created Date:</b> DD/MM/YYYY
+              </h4>
+            </div>
+
+            <form id="login-form" autocomplete="off">
+              <div class="account-inputs">
+                <input
+                  class="input-account-username"
+                  id="input-account-username"
+                  placeholder="Username..."
+                />
+                <input
+                  class="input-account-password"
+                  id="input-account-password"
+                  placeholder="Password..."
+                  type="password"
+                />
+                <input
+                  class="input-account-confirm-password"
+                  id="input-account-confirm-password"
+                  placeholder="Confirm Password..."
+                  type="password"
+                />
+              </div>
+              <div class="account-actions">
+                <div class="submit-options">
+                  <button class="btn-rect" id="submit-button" type="submit">
+                    Log in
+                  </button>
+                  <h4 class="fake-link" id="create-account-option"></h4>
+                </div>
+                <button class="btn-rect" id="delete-account">
+                  Delete Account
+                </button>
+              </div>
+            </form>
+
+            <br />
+          </div>
+
+          <!-- PERSONALISATION CONTENT -->
+          <div class="settings-content" id="personalisation-content"></div>
+
+          <!-- MISCELLANEOUS CONTENT -->
+          <div class="settings-content" id="miscellaneous-content"></div>
+        </div>
+
+        <div class="settings-categories" id="settings-categories">
+          <div class="scroll-shadow" id="settings-category-shadow"></div>
+          <div class="category" id="profile">Profile</div>
+          <div class="category" id="account">Account</div>
+          <div class="category" id="personalisation">Personalisation</div>
+          <div class="category" id="miscellaneous">Miscellaneous</div>
+        </div>
+      </div>
+
+      <!-- SUB POPUPS -->
+
+      <div class="sub-popup" id="change-username-panel">
+        <div class="sub-popup-header">Edit Username</div>
+        <div class="sub-popup-panel">
+          <div class="username-select">
+            <input
+              class="input-username"
+              id="input-username"
+              placeholder="Name..."
+              maxlength="8"
+            />
+            <h3>#</h3>
+            <input
+              class="input-username-identifier"
+              id="input-username-identifier"
+              placeholder="Numbers..."
+              maxlength="6"
+              value="1000"
+            />
+          </div>
+
+          <div class="username-buttons">
+            <button class="btn-rect" id="confirm-username">Confirm</button>
+            <button class="btn-rect" id="cancel-username">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-popup" id="delete-account-panel">
+        <div class="sub-popup-header">Delete Account</div>
+        <div class="sub-popup-panel">
+          <h4>
+            Enter your password and click "Delete" to permanently remove your
+            account. <br />
+            <b>NOTE:</b> All sent messages will be deleted
+          </h4>
+          <input
+            style="margin: 0.5rem 0"
+            id="password-delete-account"
+            placeholder="Password..."
+            type="password"
+          />
+
+          <button class="btn-rect" id="confirm-delete-account-btn">
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <!-- CHAT AREA -->
+
+      <div id="chat-area">
+        <div id="chat-header">
+          <button class="btn-round" id="open-conversations">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+
+          <button id="settings" class="btn-round settings-button">
+            <i class="fa-solid fa-gear"></i>
+            <div class="tooltip">Settings</div>
+          </button>
+        </div>
+
+        <div id="chat-footer">
+          <div id="new-messages">
+            <i class="fa-solid fa-arrow-down"></i>
+            <p>new messages</p>
+          </div>
+          <div id="file-information">
+            <div id="attached-files"></div>
+          </div>
+          <div class="chat">
+            <div id="chat-options">
+              <button id="emoji-button" class="btn-round">
+                <i class="fa-regular fa-face-smile"></i>
+                <div class="tooltip">Select an emoji to add</div>
+              </button>
+
+              <button id="attach-file" class="btn-round">
+                <i class="fa-regular fa-file"></i>
+                <div class="tooltip">Choose a file to upload</div>
+              </button>
+              <input
+                type="file"
+                id="file-input"
+                style="display: none"
+                multiple
+              />
+            </div>
+            <div class="container">
+              <input
+                autocomplete="off"
+                type="text"
+                id="chat-message-input"
+                placeholder="Type a message..."
+              />
+
+              <button id="send-message" class="btn-round chat-message-button">
+                <i class="fa-solid fa-arrow-up"></i>
+                <div class="tooltip">Message cannot be empty</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="chat-body">
+          <div class="scroll-shadow" id="chat-shadow"></div>
+        </div>
+      </div>
+
+      <!-- CONVERSATIONS -->
+
+      <div id="chat-conversations">
+        <div id="chat-conversations-header">
+          <button class="btn-round" id="close-conversations">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <h2>Add Conversation</h2>
+          <h4 id="user-id">Your ID:</h4>
+          <div class="add-user-container container">
+            <input
+              autocomplete="off"
+              type="text"
+              id="user-id-input"
+              placeholder="Type a user ID..."
+            />
+            <button id="add-user" class="btn-round user-id-button">
+              <i class="fa-solid fa-plus"></i>
+              <div class="tooltip">Create an account to add conversations</div>
+            </button>
+          </div>
+        </div>
+        <div id="conversation-parent">
+          <div class="scroll-shadow" id="conversation-shadow"></div>
+        </div>
+      </div>
+    </div>
+
+    <br />
+
+    <!-- SCRIPTS -->
+    <script src="./scripts/tools.js" defer></script>
+    <script src="./scripts/profanity-filter.js" defer></script>
+    <script src="./scripts/script.js" defer></script>
+    <script src="./scripts/message-handler.js" defer></script>
+    <script src="./scripts/settings.js" defer></script>
+    <script src="./scripts/emoji-menu.js" defer></script>
+  </body>
+</html>
