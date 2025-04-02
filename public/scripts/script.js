@@ -75,7 +75,7 @@ window.updateElementDimensions = function () {
 
   let newWidth = `${window.innerWidth - chatConversations.offsetWidth}px`;
 
-  //messageInput.style.width = `${700 + window.innerWidth - chatConversations.offsetWidth - 800 - 110}px`;
+  messageInput.style.width = `${700 + window.innerWidth - chatConversations.offsetWidth - 800 - 110}px`;
 
   let conversationChevrons = document.getElementsByClassName(
     "conversation-chevron"
