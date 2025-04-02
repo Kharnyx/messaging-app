@@ -26,7 +26,7 @@ body {
     justify-content: center;
     margin: 0;
     padding: 0;
-    font-size: 16px;
+    font-size: max(1.25vw, 1.5vh);
 }
 
 * {
@@ -184,25 +184,23 @@ a:hover {
 
 .tooltip {
     position: absolute;
-    box-sizing: content-box;
-    font-size: 0.8rem;
-    width: auto;
-    min-width: 4.5rem;
-    max-width: 6rem;
+    font-size: 0.875em;
+    width: 6.875em;
     pointer-events: none;
     height: auto;
-    font-weight: 600;
+    font-weight: bold;
     background-color: var(--theme);
     opacity: 0;
     visibility: hidden;
     color: #000000;
     text-align: center;
-    border-radius: 0.25rem;
-    padding: 0.5rem 0.5rem;
+    border-radius: 0.3125em;
+    padding: 0.5em 0.625em;
     z-index: 999999;
     display: flex;
     justify-content: center;
     transition: opacity 0.3s ease, visibility 0.3s ease, transition-delay 0.2s;
+    transform: translate(50px);
     white-space: normal;
     --triangle-top: 99%;
     --triangle-bottom: none;
@@ -293,6 +291,7 @@ a:hover {
     top: 0;
     right: 0;
     width: 70%;
+    min-height: 38px;
     border-top-right-radius: var(--default-border-radius);
     transform: translateY(-0.1px);
     background-color: #ededed;
@@ -315,16 +314,6 @@ a:hover {
     flex-direction: column;
     align-items: center;
     overflow-y: auto;
-}
-
-@media (orientation: portrait) {
-    .settings-categories {
-        width: 100%;
-    }
-
-    .settings-header {
-        width: 100%;
-    }
 }
 
 .category {
@@ -665,6 +654,7 @@ a:hover {
     flex-direction: row;
     align-items: center;
     justify-content: center;
+    width: calc(100vw - var(--conversations-width));
     height: calc(var(--chat-footer-height) + var(--file-info-height));
 }
 
@@ -705,9 +695,9 @@ a:hover {
 }
 
 #attach-file {
-    height: 2.1625em;
-    width: 2.1625em;
-    font-size: 1.3em;
+    height: 2.8125em;
+    width: 2.8125em;
+    font-size: 1em;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -800,9 +790,9 @@ a:hover {
 }
 
 #emoji-button {
-    height: 2.1625em;
-    width: 2.1625em;
-    font-size: 1.3em;
+    height: 2.8125em;
+    width: 2.8125em;
+    font-size: 1em;
     display: flex;
     align-items: center;
     justify-content: center;
