@@ -663,7 +663,7 @@ a:hover {
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: center;
+    justify-content: left;
     height: calc(var(--chat-footer-height) + var(--file-info-height));
     width: 100%;
     overflow-x: auto;
