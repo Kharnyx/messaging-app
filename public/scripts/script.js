@@ -5,6 +5,7 @@ const chatBody = document.getElementById("chat-body");
 const chatFooter = document.getElementById("chat-footer");
 const chatHeader = document.getElementById("chat-header");
 const chatShadow = document.getElementById("chat-shadow");
+const chatFooterChat = document.querySelector("#chat-footer .chat");
 
 const inputText = document.querySelectorAll('input[type="text"]');
 const messageInput = document.getElementById("chat-message-input");
@@ -63,13 +64,11 @@ window.updateElementDimensions = function () {
     parseFloat(window.getComputedStyle(conversationParent).paddingBottom) +
     parseFloat(window.getComputedStyle(conversationParent).paddingTop);
 
-  conversationParent.style.height = `${
-    window.innerHeight - conversationHeader.offsetHeight - conversationPadding
-  }px`;
+  conversationParent.style.height = `${window.innerHeight - conversationHeader.offsetHeight - conversationPadding
+    }px`;
 
-  chatBody.style.height = `${
-    window.innerHeight - chatFooter.offsetHeight - chatHeader.offsetHeight
-  }px`;
+  chatBody.style.height = `${window.innerHeight - chatFooter.offsetHeight - chatHeader.offsetHeight
+    }px`;
 
   chatShadow.style.transform = `translateY(${chatHeader.offsetHeight}px)`;
   conversationShadow.style.transform = `translateY(${conversationHeader.offsetHeight}px)`;
@@ -116,26 +115,36 @@ window.updateElementDimensions = function () {
   chatHeader.style.width = "100%";
 
   positionTooltips();
+  checkChatFooterAlignment();
 };
+
+function checkChatFooterAlignment() {
+  if (chatFooterChat.offsetWidth < chatFooterChat.scrollWidth) {
+    chatFooterChat.style.justifyContent = "flex-start";
+  } else {
+    chatFooterChat.style.justifyContent = "center";
+  }
+}
 
 function positionTooltips() {
   const tooltips = document.querySelectorAll(".tooltip");
 
   tooltips.forEach((tooltip) => {
     const parentElement = tooltip.parentElement,
-      rect = tooltip.getBoundingClientRect();
+      parentHeight = parentElement.offsetHeight;
 
     // Get the height of the parent and the tooltip
-    const parentHeight = parentElement.offsetHeight;
-    const tooltipHeight = tooltip.offsetHeight;
+    const tooltipHeight = tooltip.offsetHeight,
+      rect = tooltip.getBoundingClientRect();
 
     // Calculate initial transform position to center the tooltip
     let transform =
-      -parentHeight - Math.abs(tooltipHeight - parentHeight) / 2 - 15;
+      -parentHeight - Math.abs(tooltipHeight - parentHeight) / 2 - 8;
+    
     const topPos = rect.top - tooltipHeight / 2;
 
     if (
-      topPos < 10 ||
+      topPos < 15 ||
       parentElement.getBoundingClientRect().top + transform < 10
     ) {
       transform = Math.abs(transform); // Push the tooltip downward
@@ -152,7 +161,7 @@ function positionTooltips() {
 
     // Check if the tooltip overflows the bottom of the screen
     const viewportHeight = window.innerHeight;
-    if (rect.bottom > viewportHeight - 10) {
+    if (rect.top > viewportHeight - 10) {
       transform -= rect.bottom - viewportHeight + 10; // Adjust to prevent overflow
     }
 
