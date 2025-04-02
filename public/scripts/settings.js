@@ -60,6 +60,12 @@ settingsButton.addEventListener("click", () => {
     toggleSettings();
 });
 
+window.addEventListener("resize", () => {
+    if (window.innerWidth < window.innerHeight) {
+
+    }
+});
+
 document.addEventListener('click', (e) => {
     if (changeUserIdOpen) {
         if (!changeUsernamePanel.contains(e.target) && !changeUsername.contains(e.target)) {
