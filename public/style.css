@@ -38,6 +38,9 @@ body {
 button {
     background-color: var(--theme);
     color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     border-radius: 0.3125em;
     /*transition: background-color var(--button-hover-duration) ease-in-out;*/
@@ -51,7 +54,7 @@ button:hover {
 .btn-round {
     height: 2em;
     width: 2em;
-    margin: 0.625em;
+    margin: 0.3em;
     border-radius: 50%;
     font-size: 1em;
     display: flex;
@@ -72,7 +75,7 @@ button:hover {
 }
 
 input {
-    margin: 0;
+    margin: 0.3em;
     width: 18.75em;
     height: 3.125em;
     font-size: 1em;
@@ -661,10 +664,10 @@ a:hover {
 
 .chat {
     display: flex;
-    flex-direction: row;
     align-items: center;
     justify-content: left;
     height: calc(var(--chat-footer-height) + var(--file-info-height));
+    padding: 2px;
     width: 100%;
     overflow-x: auto;
 }
@@ -689,6 +692,10 @@ a:hover {
 
 .add-user-container {
     margin-bottom: 0.625em;
+}
+
+.input-btn {
+    margin-right: 0.75em;
 }
 
 #chat-options {
