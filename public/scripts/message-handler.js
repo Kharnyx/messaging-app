@@ -4,6 +4,7 @@ const addUser = document.getElementById("add-user");
 const createConversationInput = document.getElementById("user-id-input");
 const newMessages = document.getElementById("new-messages");
 const loadingContainer = document.getElementById("loading-container");
+const loadingMessage = document.getElementById("loading-message");
 const chatContainer = document.getElementById("chat-container");
 
 const currentUser = "";
@@ -28,19 +29,20 @@ var fullDate = "";
 var messagePosting = false;
 
 const apiSubDomain = "kharnyx-messaging-app";
-const apiBaseUrl = "https://" + apiSubDomain + ".glitch.me";
+const page = `${apiSubDomain}.glitch.me`;
+const apiBaseUrl = `https://${page}`;
 
 //var socket = "";
 const maxReconnetAttempts = 5;
 var userIdsList = "";
 var userId = "";
 
-const wsUrl = "wss://" + apiSubDomain + ".glitch.me";
+const wsUrl = `wss://${page}`;
 const socket = new WebSocket(wsUrl);
 
 window.connectWebSocket = function () {
   let reconnectAttempts = 0;
-  const maxReconnectAttempts = 5; // Make sure this is defined somewhere
+  const maxReconnectAttempts = 5;
 
   socket.onclose = function () {
     if (reconnectAttempts < maxReconnectAttempts) {
@@ -58,7 +60,7 @@ window.connectWebSocket = function () {
     chatContainer.style.display = "block";
     window.updateElementDimensions();
     window.resizeSettings();
-    document.getElementById("loading-message").textContent = "Connected!";
+    loadingMessage.textContent = "Connected!";
     loadingContainer.style.opacity = "0";
 
     setTimeout(() => {
@@ -69,12 +71,18 @@ window.connectWebSocket = function () {
 
   socket.onerror = function (error) {
     console.error("WebSocket error:", error);
+
+    // When the app cannot connect to the server, display a different message and add a disconnected class
+    loadingMessage.innerHTML = "It’s not you, it’s us. <br> We’re having a little server timeout!";
+    document.getElementById("loading-container").classList.add("disconnected");
+
+    console.log("Connection failure");
   };
 
   socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
     const type = data.type;
-    
+
     if (type === "error") {
       console.log(data);
     } else if (type === "signup") {
@@ -84,9 +92,8 @@ window.connectWebSocket = function () {
 
       if (data.status === "success") {
         let createdDate = new Date(data.account.createdDate);
-        let date = 
-          `${String(createdDate.getDate()).padStart(2, "0")}/${
-            createdDate.getUTCMonth() + 1
+        let date =
+          `${String(createdDate.getDate()).padStart(2, "0")}/${createdDate.getUTCMonth() + 1
           }/${createdDate.getFullYear()}`;
         accountUsername = data.account.username;
         userId = data.account.userId;
@@ -224,6 +231,18 @@ window.connectWebSocket = function () {
     }
   };
 };
+
+document.querySelector("#loading-container .loader").addEventListener('animationend', function () {
+  // Change the background color once the animation ends
+  document.querySelector("#loading-container .loader").style.opacity = 0;
+
+  setTimeout(() => {
+    loadingMessage.style.transform = `translateY(
+    -${loadingMessage.getBoundingClientRect().top +
+      loadingMessage.offsetHeight / 2 -
+      window.innerHeight / 2}px)`;
+  }, 500);
+});
 
 window.onload = function () {
   window.connectWebSocket();
@@ -365,9 +384,8 @@ function loadMessages(response) {
       const isFromMe = userId === msg.senderId;
 
       const messageContainer = document.createElement("div");
-      messageContainer.className = `message-container ${
-        isFromMe ? "from-me" : "from-others"
-      }`;
+      messageContainer.className = `message-container ${isFromMe ? "from-me" : "from-others"
+        }`;
 
       const fileParent = document.createElement("div");
       fileParent.id = "files";
@@ -546,7 +564,7 @@ function loadMessages(response) {
       messages[messages.length - 1].senderId === userId) ||
     (newMessageSent &&
       currentMaxScroll - currentScrollPos <
-        newMessageSent.offsetHeight + bottomPadding)
+      newMessageSent.offsetHeight + bottomPadding)
   ) {
     scrollToBottom();
 
