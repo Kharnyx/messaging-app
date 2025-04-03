@@ -164,7 +164,19 @@ a:hover {
     background: conic-gradient(var(--theme-hover) 0deg 90deg,
             var(--theme) 90deg 360deg);
     box-sizing: border-box;
+    transition: opacity 0.3s ease;
     animation: rotate 2s linear infinite;
+}
+
+.loading-container.disconnected .loader {
+    background: conic-gradient(#a77070 0deg 90deg,
+            #c27a7a 90deg 360deg);
+    animation: rotate 2s linear 1;
+}
+
+.loading-container.disconnected #loading-message {
+    transition: transform 0.5s cubic-bezier(0.19, 0.73, 0.26, 1);
+    color: #c27a7a;
 }
 
 .loader::after {
