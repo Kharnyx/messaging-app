@@ -66,22 +66,24 @@ window.addEventListener("resize", () => {
     }
 });
 
-document.addEventListener('click', (e) => {
-    if (changeUserIdOpen) {
-        if (!changeUsernamePanel.contains(e.target) && !changeUsername.contains(e.target)) {
-            changeUserIdOpen = false;
-            toggleChangeUserId();
+for (let overlay of document.querySelectorAll(".overlay")) {
+    overlay.addEventListener('click', (e) => {
+        if (changeUserIdOpen) {
+            if (!changeUsernamePanel.contains(e.target) && !changeUsername.contains(e.target)) {
+                changeUserIdOpen = false;
+                toggleChangeUserId();
+            }
+        } else if (deleteAccountOpen) {
+            if (!deleteAccountPanel.contains(e.target) && !deleteAccount.contains(e.target)) {
+                deleteAccountOpen = false;
+                toggleDeleteAccount();
+            }
+        } else if (!settingsButton.contains(e.target) && !settingsPanel.contains(e.target)) {
+            settingsOpen = false;
+            toggleSettings();
         }
-    } else if (deleteAccountOpen) {
-        if (!deleteAccountPanel.contains(e.target) && !deleteAccount.contains(e.target)) {
-            deleteAccountOpen = false;
-            toggleDeleteAccount();
-        }
-    } else if (!settingsButton.contains(e.target) && !settingsPanel.contains(e.target)) {
-        settingsOpen = false;
-        toggleSettings();
-    }
-});
+    });
+}
 
 window.resizeSettings = function () {
     settingsBody.style.height = `${settingsPanel.offsetHeight - settingsHeader.offsetHeight}px`;
