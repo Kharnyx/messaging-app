@@ -573,7 +573,6 @@ a:hover {
     flex-direction: column;
     justify-content: start;
     text-align: center;
-    flex-wrap: wrap;
 }
 
 .input-account-username,
