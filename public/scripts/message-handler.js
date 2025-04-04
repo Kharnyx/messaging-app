@@ -100,6 +100,7 @@ window.connectWebSocket = function () {
         userId = data.account.userId;
         settingsUsername.textContent = `${userId}`;
         userIdtxt.textContent = `Your ID: ${userId}`;
+
         if (accountUsername) {
           loggedInUsername.textContent = `Account: ${accountUsername}`;
           deleteAccount.style.display = "flex";
@@ -122,7 +123,7 @@ window.connectWebSocket = function () {
       userIdtxt.textContent = `Your ID: ${userId}`;
 
       loggedInUsername.textContent = "ACCOUNT (Not logged in)";
-      deleteAccount.style.display = "block";
+      deleteAccount.style.display = "none";
 
       conversationErrorMessage.style.display = "block";
 
@@ -137,6 +138,14 @@ window.connectWebSocket = function () {
         loggedInUsername.textContent = "ACCOUNT (Not logged in)";
 
         conversationErrorMessage.style.display = "block";
+
+        toggleCreateAccount();
+
+        updateConversations();
+        switchConversations();
+
+        deleteAccountOpen = false;
+        toggleDeleteAccount();
       }
     } else if (type === "userIdResult") {
       if (!data.result) {
