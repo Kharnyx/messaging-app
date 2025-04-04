@@ -6,6 +6,7 @@ const newMessages = document.getElementById("new-messages");
 const loadingContainer = document.getElementById("loading-container");
 const loadingMessage = document.getElementById("loading-message");
 const chatContainer = document.getElementById("chat-container");
+const conversationErrorMessage = document.getElementById("add-conversation-error");
 
 const currentUser = "";
 
@@ -73,8 +74,8 @@ window.connectWebSocket = function () {
     console.error("WebSocket error:", error);
 
     // When the app cannot connect to the server, display a different message and add a disconnected class
-    loadingMessage.innerHTML = "It’s not you, it’s us. <br> We’re having a little server timeout!";
-    document.getElementById("loading-container").classList.add("disconnected");
+    loadingMessage.innerHTML = "Cannot Connect To Server";
+    loadingContainer.classList.add("disconnected");
 
     console.log("Connection failure");
   };
@@ -107,6 +108,8 @@ window.connectWebSocket = function () {
           deleteAccount.style.display = "none";
         }
 
+        conversationErrorMessage.style.display = "none";
+
         toggleCreateAccount();
 
         updateConversations();
@@ -119,7 +122,9 @@ window.connectWebSocket = function () {
       userIdtxt.textContent = `Your ID: ${userId}`;
 
       loggedInUsername.textContent = "ACCOUNT (Not logged in)";
-      deleteAccount.style.display = "none";
+      deleteAccount.style.display = "block";
+
+      conversationErrorMessage.style.display = "block";
 
       toggleCreateAccount();
 
@@ -130,6 +135,8 @@ window.connectWebSocket = function () {
       if (data.status === "success") {
         accountUsername = null;
         loggedInUsername.textContent = "ACCOUNT (Not logged in)";
+
+        conversationErrorMessage.style.display = "block";
       }
     } else if (type === "userIdResult") {
       if (!data.result) {
@@ -232,9 +239,9 @@ window.connectWebSocket = function () {
   };
 };
 
-document.querySelector("#loading-container .loader").addEventListener('animationend', function () {
+loadingContainer.querySelector(".loader").addEventListener('animationend', function () {
   // Change the background color once the animation ends
-  document.querySelector("#loading-container .loader").style.opacity = 0;
+  loadingContainer.querySelector(".loader").style.opacity = 0;
 
   setTimeout(() => {
     loadingMessage.style.transform = `translateY(
