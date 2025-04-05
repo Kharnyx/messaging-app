@@ -886,7 +886,7 @@ function switchConversations() {
   chatBody.scrollTop = chatBody.scrollHeight;
 }
 
-window.deleteMessages = function () {
+window.deleteMessages = function (key) {
   //console.log("deleting messages...")
-  socket.send(JSON.stringify({ type: "delete", devKey: devKey }));
+  socket.send(JSON.stringify({ type: "delete", devKey: key }));
 };
