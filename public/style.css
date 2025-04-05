@@ -9,8 +9,8 @@
     --button-hover-duration: 0.3s;
     --conversations-width: 28.12vw;
     --chat-header-height: 3.25em;
-    --chat-footer-height: 4.5em;
-    --file-info-height: 5.5em;
+    --chat-footer-height: 5em;
+    --file-info-height: 4em;
     --default-border-radius: 0.35em;
 }
 
@@ -262,7 +262,7 @@ a:hover {
     bottom: 50%;
     transform: translate(-50%, -50%);
     background-color: rgba(0, 0, 0, 0.25);
-    z-index: 999;
+    z-index: 1000;
 }
 
 #open-conversations {
@@ -282,7 +282,7 @@ a:hover {
 }
 
 #settings-overlay {
-    z-index: 999;
+    z-index: 1000;
 }
 
 .settings-panel {
@@ -679,7 +679,7 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: left;
-    height: calc(var(--chat-footer-height) + var(--file-info-height));
+    height: var(--chat-footer-height);
     padding: 2px;
     width: 100%;
     overflow-x: auto;
