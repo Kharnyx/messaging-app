@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat System</title>
-  <link rel="stylesheet" href="public/style.css" />
+  <link rel="stylesheet" href="../style.css" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
 </head>
 
@@ -189,10 +189,11 @@
           <i class="fa-solid fa-arrow-down"></i>
           <p>new messages</p>
         </div>
-        <div id="file-information">
-          <div id="attached-files"></div>
-        </div>
-        <div class="chat">
+        <div class="chat-functions">
+          <div id="file-information">
+            <div id="attached-files"></div>
+          </div>
+          <div class="chat">
             <div id="chat-options">
               <button id="emoji-button" class="btn-round">
                 <i class="fa-regular fa-face-smile"></i>
@@ -206,13 +207,14 @@
               <input type="file" id="file-input" style="display: none" multiple />
             </div>
             <div class="container">
-              <input autocomplete="off" type="text" id="chat-message-input" placeholder="Type a message..." />
+              <input autocomplete="off" type="text" id="chat-message-input" placeholder="Type a message...">
 
               <button id="send-message" class="btn-round chat-message-button input-btn">
                 <i class="fa-solid fa-arrow-up"></i>
                 <div class="tooltip">Message is empty</div>
               </button>
             </div>
+          </div>
         </div>
       </div>
     </div>
@@ -244,12 +246,12 @@
   <br />
 
   <!-- SCRIPTS -->
-  <script src="public/scripts/tools.js" defer></script>
-  <script src="public/scripts/profanity-filter.js" defer></script>
-  <script src="public/scripts/script.js" defer></script>
-  <script src="public/scripts/message-handler.js" defer></script>
-  <script src="public/scripts/settings.js" defer></script>
-  <script src="public/scripts/emoji-menu.js" defer></script>
+  <script src="../scripts/tools.js" defer></script>
+  <script src="../scripts/profanity-filter.js" defer></script>
+  <script src="../scripts/script.js" defer></script>
+  <script src="../scripts/message-handler.js" defer></script>
+  <script src="../scripts/settings.js" defer></script>
+  <script src="../scripts/emoji-menu.js" defer></script>
 </body>
 
 </html>
