@@ -10,7 +10,7 @@
     --conversations-width: 28.12vw;
     --chat-header-height: 3.25em;
     --chat-footer-height: 5em;
-    --file-info-height: 4em;
+    --file-info-height: 3em;
     --default-border-radius: 0.35em;
 }
 
@@ -32,7 +32,6 @@ body {
 * {
     scrollbar-color: var(--theme) transparent;
     box-sizing: border-box;
-    user-select: none;
 }
 
 button {
@@ -75,10 +74,9 @@ button:hover {
     padding: 1.25em;
 }
 
-input {
+input, textarea {
     margin: 0.3em;
     width: 18.75em;
-    height: 3.125em;
     font-size: 1em;
     padding: 0.625em 0.9375em;
     border: none;
@@ -87,15 +85,26 @@ input {
     border-radius: 6.25em;
     box-sizing: border-box;
     display: flex;
+    outline: none;
     align-items: center;
 }
 
-input:focus {
-    outline: none;
+input {
+    height: 3.125em;
+}
+
+textarea {
+    border-radius: 50px;
+    overflow: hidden;
+    height: 10em;
+    resize: none;
+}
+
+input:focus, textarea:focus {
     box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-input::placeholder {
+input::placeholder, textarea::placeholder {
     font-style: italic;
 }
 
@@ -631,17 +640,6 @@ a:hover {
     margin-left: 0.25em;
 }
 
-#file-information {
-    box-sizing: border-box;
-    height: var(--file-info-height);
-    width: calc(100vw - var(--conversations-width));
-    background-color: var(--border-color);
-    display: flex;
-    align-items: center;
-    overflow-x: scroll;
-    padding: 5px 0;
-}
-
 #attached-files {
     display: flex;
     height: 90%;
@@ -651,6 +649,7 @@ a:hover {
     margin-left: 0.5em;
     position: relative;
     overflow: visible;
+    border: 1px solid var(--border-color);
 }
 
 #image {
@@ -663,6 +662,7 @@ a:hover {
     top: 0;
     width: 1em;
     height: 1em;
+    padding: 0.8em;
     border-radius: 100em;
     background-color: #a8a8a8;
     z-index: 10;
@@ -675,6 +675,10 @@ a:hover {
     transform: translate(0.4em, -0.4em);
 }
 
+.chat-functions {
+    width: 100%;
+}
+
 .chat {
     display: flex;
     align-items: center;
@@ -685,16 +689,16 @@ a:hover {
     overflow-x: auto;
 }
 
-.chat #file-information {
-    position: fixed;
-    bottom: 0;
-    right: 0;
+.chat-functions #file-information {
     display: flex;
-    justify-content: center;
     align-items: center;
-    border-top: var(--border-width) solid var(--border-color);
-    background-color: var(--background-color);
+    border-bottom: var(--border-width) solid var(--border-color);
     box-sizing: border-box;
+    background-color: var(--background-color);
+    height: var(--file-info-height);
+    width: calc(100vw - var(--conversations-width));
+    overflow-x: auto;
+    padding: 5px 0;
 }
 
 .container {
@@ -703,8 +707,8 @@ a:hover {
     align-items: center;
 }
 
-.add-user-container {
-    margin-bottom: 0.625em;
+.chat .container {
+    position: unset;
 }
 
 .input-btn {
@@ -718,7 +722,7 @@ a:hover {
 }
 
 #chat-message-input {
-    font-size: 1em;
+    font-size: 0.9rem;
     padding: 0.625em 1.5em;
     padding-right: 3.125em;
     width: calc(43.75em + ((100vw - var(--conversations-width)) - 50em - 6.875em));
@@ -726,8 +730,8 @@ a:hover {
 }
 
 #attach-file {
-    height: 2.1625em;
-    width: 2.1625em;
+    height: 2.15em;
+    width: 2.15em;
     font-size: 1.3em;
     display: flex;
     align-items: center;
@@ -737,11 +741,12 @@ a:hover {
 #send-message {
     position: absolute;
     right: 0;
-    font-size: 1em;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
+    transform: translateX(-45px);
 }
 
 .unavailable {
@@ -783,10 +788,9 @@ a:hover {
     align-items: center;
     justify-content: center;
     border-bottom: var(--border-width) solid var(--border-color);
-    top: 0;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    font-size: 0.9em;
+    font-size: 0.9rem;
 }
 
 #add-conversation-error {
@@ -796,7 +800,7 @@ a:hover {
 }
 
 #user-id-input {
-    font-size: 1em;
+    font-size: 0.8rem;
     padding: 0.625em 1.5em;
     padding-right: 3.125em;
     width: calc(var(--conversations-width) - 3.125em);
@@ -805,7 +809,7 @@ a:hover {
 
 #add-user {
     position: absolute;
-    font-size: 1em;
+    font-size: 0.8rem;
     width: 1.5625em;
     height: 1.5625em;
     right: 0;
@@ -819,6 +823,7 @@ a:hover {
     text-align: left;
     border-bottom: var(--border-width) solid var(--border-color);
     display: flex;
+    font-size: 0.8rem;
     justify-content: space-between;
     align-items: center;
 }
@@ -828,9 +833,9 @@ a:hover {
 }
 
 #emoji-button {
-    height: 2.1625em;
-    width: 2.1625em;
-    font-size: 1.3em;
+    height: 2.15em;
+    width: 2.15em;
+    font-size: 1.3rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -859,7 +864,7 @@ a:hover {
 }
 
 #file-name {
-    font-size: 0.875em;
+    font-size: 0.875rem;
     color: #ffffff;
 }
 
@@ -880,7 +885,7 @@ a:hover {
 }
 
 #file-size {
-    font-size: 0.675em;
+    font-size: 0.675rem;
     color: #dddddd;
 }
 
@@ -946,7 +951,7 @@ a:hover {
     justify-content: center;
     background-color: #f1f1f1;
     border-radius: 0.3125em;
-    font-size: 0.875em;
+    font-size: 0.875rem;
 }
 
 .tab.selected {
@@ -960,7 +965,7 @@ a:hover {
 .emoji-option {
     display: inline-block;
     line-height: 130%;
-    font-size: 1.5em;
+    font-size: 1.5rem;
     cursor: pointer;
     padding: 0.3125em;
     margin: 0;
@@ -1007,20 +1012,20 @@ a:hover {
 }
 
 .timestamp {
-    font-size: 0.75em;
+    font-size: 0.75rem;
     margin-right: 5px;
     margin-top: 5px;
     color: #7a7a7a;
 }
 
 .timestamp.new-day {
-    margin: 15px 0;
+    margin: 0.8em 0;
     font-weight: bold;
     text-align: center;
 }
 
 .sender {
-    font-size: 0.75em;
+    font-size: 0.75rem;
     color: #6a6a6a;
 }
 
@@ -1029,8 +1034,7 @@ a:hover {
 #new-messages,
 .conversation,
 .conversation-selected,
-#emoji-menu,
-#chat-conversations-header {
+#emoji-menu {
     cursor: default;
     user-select: none;
 }
