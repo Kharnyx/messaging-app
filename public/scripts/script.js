@@ -223,11 +223,7 @@ inputText.forEach((element) => {
 // Shows a list of attached images that the client wants to send
 window.updateAttachedFiles = function () {
   console.log(fileInput.files.length);
-  if (fileInput.files.length > 0) {
-    root.style.setProperty("--file-info-height", "12em");
-  } else {
-    root.style.setProperty("--file-info-height", "2em");
-  }
+  checkInfoHeight();
 
   while (attachedFiles.firstChild) {
     attachedFiles.removeChild(attachedFiles.firstChild);
@@ -241,7 +237,7 @@ window.updateAttachedFiles = function () {
     let fileSize = file.size;
 
     if (file.type.startsWith("image/")) {
-      const background = document.createElement("div");
+      const container = document.createElement("div");
 
       const imagePreview = document.createElement("div");
       imagePreview.style.position = "relative";
@@ -249,7 +245,7 @@ window.updateAttachedFiles = function () {
       imagePreview.style.height = "100%";
 
       const image = document.createElement("img");
-      image.id = "image-preview";
+      image.id = "file-preview";
 
       const removeFile = document.createElement("div");
       removeFile.id = "remove-file";
@@ -267,23 +263,59 @@ window.updateAttachedFiles = function () {
 
       reader.readAsDataURL(file);
 
-      background.appendChild(imagePreview);
+      container.appendChild(imagePreview);
       imagePreview.appendChild(image);
       imagePreview.appendChild(removeFile);
-      attachedFiles.appendChild(background);
+      attachedFiles.appendChild(container);
 
       removeFile.addEventListener("click", () => {
-        background.remove();
+        container.remove();
         removeAttachedFile(i);
 
         // console.log(fileInput.files.length);
 
-        // Check if files are attached, if not shrink the file info container
-        if (fileInput.files.length > 0) {
-          root.style.setProperty("--file-info-height", "12em");
-        } else {
-          root.style.setProperty("--file-info-height", "3em");
-        }
+        checkInfoHeight();
+      });
+    } else if (file.type.startsWith("video/")) {
+      const container = document.createElement("div");
+      container.style.position = "relative";
+
+      const videoUrl = URL.createObjectURL(file);
+      const videoPreview = document.createElement("video");
+      videoPreview.src = videoUrl;
+      videoPreview.controls = true
+      videoPreview.style.position = "relative";
+      videoPreview.style.display = "flex";
+      videoPreview.style.height = "100%";
+      videoPreview.id = "file-preview";
+
+      const removeFile = document.createElement("div");
+      removeFile.id = "remove-file";
+
+      const X = document.createElement("i");
+      X.className = "fa-solid fa-x";
+
+      removeFile.appendChild(X);
+
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        videoPreview.src = e.target.result;
+      };
+
+      reader.readAsDataURL(file);
+
+      container.appendChild(videoPreview);
+      container.appendChild(removeFile);
+      attachedFiles.appendChild(container);
+
+      removeFile.addEventListener("click", () => {
+        container.remove();
+        removeAttachedFile(i);
+
+        // console.log(fileInput.files.length);
+
+        checkInfoHeight();
       });
     }
 
@@ -309,6 +341,23 @@ function removeAttachedFile(index) {
   fileInput.files = dataTransfer.files;
 
   // console.log(fileInput.files);
+}
+
+function checkInfoHeight() {
+  let filesArray = Array.from(fileInput.files);
+
+  // Filter out any files with empty names or invalid names
+  filesArray = filesArray.filter(file => file.name.trim() !== "");
+
+  if (filesArray.length > 0) {
+    root.style.setProperty("--file-info-height", "12em");
+  } else {
+    root.style.setProperty("--file-info-height", "3em");
+  }
+
+  window.updateElementDimensions();
+
+  // console.log(filesArray);
 }
 
 fileInput.addEventListener("input", () => {
