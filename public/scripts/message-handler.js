@@ -10,33 +10,34 @@ const conversationErrorMessage = document.getElementById("add-conversation-error
 
 const currentUser = "";
 
-var devKey = "";
+let devKey = "";
 
-var messageList = { messages: [] };
-var lastMessages = [];
-var conversations = [];
-var messagesSentToMe = [];
+let messageList = { messages: [] };
+let lastMessages = [];
+let conversations = [];
+let messagesSentToMe = [];
 
-var selectedConversation = "";
+let selectedConversation = "";
+let maxPayload = 1 * 1024 * 1024;
 
-var now = new Date();
+let now = new Date();
 
-var currentDate = "";
-var currentDay = "";
-var currentMonth = "";
-var currentYear = "";
-var fullDate = "";
+let currentDate = "";
+let currentDay = "";
+let currentMonth = "";
+let currentYear = "";
+let fullDate = "";
 
-var messagePosting = false;
+let messagePosting = false;
 
 const apiSubDomain = "kharnyx-messaging-app";
 const page = `${apiSubDomain}.glitch.me`;
 const apiBaseUrl = `https://${page}`;
 
-//var socket = "";
+//let socket = "";
 const maxReconnetAttempts = 5;
-var userIdsList = "";
-var userId = "";
+let userIdsList = "";
+let userId = "";
 
 const wsUrl = `wss://${page}`;
 const socket = new WebSocket(wsUrl);
@@ -86,6 +87,8 @@ window.connectWebSocket = function () {
 
     if (type === "error") {
       console.log(data);
+    } else if (type === "data") {
+      maxPayload = data.maxPayload;
     } else if (type === "signup") {
       //console.log(data);
     } else if (type === "login") {
@@ -332,8 +335,8 @@ function scrollToBottom() {
   newMessages.style.display = "none";
 }
 
-var chatBodyScrollDiff = 0;
-var newMessageSent = null;
+let chatBodyScrollDiff = 0;
+let newMessageSent = null;
 const bottomPadding = window.getComputedStyle(chatBody).paddingBottom;
 chatBody.addEventListener("scroll", () => {
   let requirementToRead = newMessageSent.offsetHeight + parseInt(bottomPadding);
@@ -361,7 +364,7 @@ function loadMessages(response) {
     parseInt(chatBody.scrollHeight) - parseInt(chatBody.clientHeight);
   let currentScrollPos = chatBody.scrollTop;
 
-  var messages =
+  let messages =
     response.messages || response.currentMessages || response.messagesToSend; // Extract messages from the response
 
   messagesSentToMe = messages;
@@ -384,9 +387,9 @@ function loadMessages(response) {
 
   clearChatBody();
 
-  var previousProduct = null;
+  let previousProduct = null;
 
-  var index = 0;
+  let index = 0;
 
   updateCurrentDates();
   if (messages) {
@@ -506,7 +509,7 @@ function loadMessages(response) {
         }
       });
 
-      var previousMsgFullDate = null;
+      let previousMsgFullDate = null;
       if (previousProduct) {
         const previousDate = new Date(previousProduct.timestamp);
         previousMsgFullDate = `${previousDate.getFullYear()}-${String(
@@ -610,13 +613,27 @@ window.sendMessage = debounce(() => {
     return;
   }
 
+  let files = Array.from(fileInput.files);
+  let validFiles = files.filter(file => file.name.trim() !== "");
+
+  // console.log(files);
+
+  let cumullativeFileSize = 0;
+
+  for (let file of validFiles) {
+    cumullativeFileSize += file.size;
+  }
+
+  if (cumullativeFileSize > maxPayload) {
+    console.error("File size exceeds the maximum limit");
+    return;
+  }
+
   updateCurrentDates();
 
-  var cleanedMessage = window.ProfanityFilter.clean(messageText);
+  let cleanedMessage = window.ProfanityFilter.clean(messageText);
 
   if (!messageText.trim()) cleanedMessage = "";
-
-  const files = fileInput.files;
 
   const formData = new FormData();
 
@@ -636,9 +653,9 @@ window.sendMessage = debounce(() => {
 
   if (accountUsername) messageData.senderUsername = accountUsername;
 
-  if (files.length > 0) {
+  if (validFiles.length > 0) {
     // Read files as binary and send the binary data separately
-    const fileObjects = Array.from(files).map((file) => {
+    const fileObjects = Array.from(validFiles).map((file) => {
       return new Promise((resolve, reject) => {
         let reader = new FileReader();
         reader.onloadend = () => {
