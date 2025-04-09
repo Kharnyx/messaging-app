@@ -633,7 +633,7 @@ a:hover {
     height: 90%;
 }
 
-#image-preview {
+#file-preview {
     margin: 0 0.5em;
     position: relative;
     overflow: visible;
@@ -646,7 +646,7 @@ a:hover {
 
 #remove-file {
     position: absolute;
-    font-size: 1rem;
+    font-size: 0.5rem;
     right: 0;
     top: 0;
     width: 1em;
@@ -660,7 +660,6 @@ a:hover {
     align-items: center;
     justify-content: center;
     color: #ffffff;
-    font-size: 0.5em;
     overflow: hidden;
     transform: translateY(-1em);
 }
