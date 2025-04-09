@@ -118,6 +118,13 @@ window.updateElementDimensions = function () {
   checkChatFooterAlignment();
 };
 
+messageInput.addEventListener("input", updateTextareaSize(messageInput));
+
+function updateTextareaSize(element) {
+  //element.style.height = "auto";
+  //element.style.height = `${element.scrollHeight}px`;
+}
+
 function checkChatFooterAlignment() {
   if (chatFooterChat.offsetWidth < chatFooterChat.scrollWidth) {
     chatFooterChat.style.justifyContent = "flex-start";
@@ -140,7 +147,7 @@ function positionTooltips() {
     // Calculate initial transform position to center the tooltip
     let transform =
       -parentHeight - Math.abs(tooltipHeight - parentHeight) / 2 - 8;
-    
+
     const topPos = rect.top - tooltipHeight / 2;
 
     if (
@@ -213,21 +220,20 @@ inputText.forEach((element) => {
   element.addEventListener("focus", updateButtonState);
 });
 
-function removeAttachedFile(index) {
-  const filesArray = Array.from(fileInput.files);
-  filesArray.splice(index, 1); // Remove the file from the array
-
-  const dataTransfer = new DataTransfer();
-  filesArray.forEach((file) => dataTransfer.items.add(file)); // Rewrite the array with the removed file
-  fileInput.files = dataTransfer.files;
-}
-
 // Shows a list of attached images that the client wants to send
 window.updateAttachedFiles = function () {
+  console.log(fileInput.files.length);
+  if (fileInput.files.length > 0) {
+    root.style.setProperty("--file-info-height", "12em");
+  } else {
+    root.style.setProperty("--file-info-height", "2em");
+  }
+
   while (attachedFiles.firstChild) {
     attachedFiles.removeChild(attachedFiles.firstChild);
   }
 
+  // Create elements for the files the client attached
   for (let i = 0; i < fileInput.files.length; i++) {
     let file = fileInput.files[i];
 
@@ -269,14 +275,41 @@ window.updateAttachedFiles = function () {
       removeFile.addEventListener("click", () => {
         background.remove();
         removeAttachedFile(i);
+
+        // console.log(fileInput.files.length);
+
+        // Check if files are attached, if not shrink the file info container
+        if (fileInput.files.length > 0) {
+          root.style.setProperty("--file-info-height", "12em");
+        } else {
+          root.style.setProperty("--file-info-height", "3em");
+        }
       });
     }
 
-    //console.log(`Name: ${fileName}    Size: ${window.formatFileSize(fileSize)}`);
+    // console.log(`Name: ${fileName}    Size: ${window.formatFileSize(fileSize)}`);
   }
 
-  //fileInformation.appendChild(fileInfo);
+  // fileInformation.appendChild(fileInfo);
 };
+
+function removeAttachedFile(index) {
+  const filesArray = Array.from(fileInput.files);
+  filesArray[index] = null; // Remove the file from the array
+
+  const dataTransfer = new DataTransfer();
+  for (let file of filesArray) {
+    if (file != null) {
+      dataTransfer.items.add(file);
+    } else {
+      dataTransfer.items.add(new File([], ""));
+    }
+  }
+
+  fileInput.files = dataTransfer.files;
+
+  // console.log(fileInput.files);
+}
 
 fileInput.addEventListener("input", () => {
   updateButtonState();
