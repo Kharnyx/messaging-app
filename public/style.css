@@ -83,7 +83,6 @@ input, textarea {
     background-color: #f1f1f1;
     color: #000000;
     border-radius: 6.25em;
-    box-sizing: border-box;
     display: flex;
     outline: none;
     align-items: center;
@@ -173,7 +172,6 @@ a:hover {
     border-radius: 50%;
     background: conic-gradient(var(--theme-hover) 0deg 90deg,
             var(--theme) 90deg 360deg);
-    box-sizing: border-box;
     transition: opacity 0.3s ease;
     animation: rotate 2s linear infinite;
 }
@@ -326,7 +324,6 @@ a:hover {
 }
 
 .settings-categories {
-    box-sizing: border-box;
     position: absolute;
     left: 0;
     bottom: 0;
@@ -354,7 +351,6 @@ a:hover {
 }
 
 .category {
-    box-sizing: border-box;
     width: 95%;
     padding: 0.75em;
     border-radius: var(--default-border-radius);
@@ -377,7 +373,6 @@ a:hover {
 }
 
 .settings-body {
-    box-sizing: border-box;
     position: absolute;
     right: 0;
     bottom: 0;
@@ -417,7 +412,6 @@ a:hover {
 }
 
 .sub-popup-panel {
-    box-sizing: border-box;
     padding: 1em 2em;
     border-radius: 0 0 var(--default-border-radius) var(--default-border-radius);
     width: 23em;
@@ -431,7 +425,6 @@ a:hover {
 }
 
 .sub-popup {
-    box-sizing: border-box;
     position: absolute;
     left: 50%;
     right: 50%;
@@ -460,7 +453,6 @@ a:hover {
 
 #confirm-delete-account {
     width: 10em;
-    box-sizing: border-box;
 }
 
 .username-buttons {
@@ -513,7 +505,6 @@ a:hover {
 }
 
 #chat-header {
-    box-sizing: border-box;
     display: flex;
     height: 3em;
     border-bottom: var(--border-width) solid var(--border-color);
@@ -566,7 +557,6 @@ a:hover {
 
 .settings-content {
     position: relative;
-    box-sizing: border-box;
     background-color: #ffffff;
     border-bottom-right-radius: 0.5em;
     border-bottom-left-radius: 0.5em;
@@ -609,7 +599,6 @@ a:hover {
 }
 
 #chat-footer {
-    box-sizing: border-box;
     position: fixed;
     width: 100%;
     height: calc(var(--chat-footer-height) + var(--file-info-height));
@@ -632,7 +621,6 @@ a:hover {
     border-radius: 10em;
     background-color: #ffffff;
     transform: translateY(-50px);
-    box-sizing: border-box;
     box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -646,7 +634,7 @@ a:hover {
 }
 
 #image-preview {
-    margin-left: 0.5em;
+    margin: 0 0.5em;
     position: relative;
     overflow: visible;
     border: 1px solid var(--border-color);
@@ -658,11 +646,13 @@ a:hover {
 
 #remove-file {
     position: absolute;
+    font-size: 1rem;
     right: 0;
     top: 0;
     width: 1em;
     height: 1em;
-    padding: 0.8em;
+    margin: 0.2em;
+    padding: 1.25em;
     border-radius: 100em;
     background-color: #a8a8a8;
     z-index: 10;
@@ -672,7 +662,7 @@ a:hover {
     color: #ffffff;
     font-size: 0.5em;
     overflow: hidden;
-    transform: translate(0.4em, -0.4em);
+    transform: translateY(-1em);
 }
 
 .chat-functions {
@@ -693,7 +683,6 @@ a:hover {
     display: flex;
     align-items: center;
     border-bottom: var(--border-width) solid var(--border-color);
-    box-sizing: border-box;
     background-color: var(--background-color);
     height: var(--file-info-height);
     width: calc(100vw - var(--conversations-width));
@@ -846,7 +835,6 @@ a:hover {
     display: flex;
     flex-direction: column;
     margin: 0.125em 0;
-    box-sizing: border-box;
 }
 
 #open-file {
@@ -985,7 +973,6 @@ a:hover {
     width: 100%;
     height: calc(100vh - var(--chat-footer-height) - var(--file-info-height) - var(--chat-header-height));
     padding: 0.625em;
-    box-sizing: border-box;
     overflow-y: scroll;
     background: #f5f5f5;
     opacity: 1;
