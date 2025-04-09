@@ -222,7 +222,7 @@ inputText.forEach((element) => {
 
 // Shows a list of attached images that the client wants to send
 window.updateAttachedFiles = function () {
-  console.log(fileInput.files.length);
+  // console.log(fileInput.files.length);
   checkInfoHeight();
 
   while (attachedFiles.firstChild) {
