@@ -74,7 +74,8 @@ button:hover {
     padding: 1.25em;
 }
 
-input, textarea {
+input,
+textarea {
     margin: 0.3em;
     width: 18.75em;
     font-size: 1em;
@@ -99,11 +100,13 @@ textarea {
     resize: none;
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
     box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
     font-style: italic;
 }
 
@@ -226,7 +229,7 @@ a:hover {
     z-index: 999999;
     display: flex;
     justify-content: center;
-    transition: opacity 0.3s ease, visibility 0.3s ease, transition-delay 0.2s;
+    transition: opacity 0s ease;
     white-space: normal;
     --triangle-top: 99%;
     --triangle-bottom: none;
@@ -689,13 +692,15 @@ a:hover {
     padding: 5px 0;
 }
 
-.container {
+.container,
+.input-group-container {
     display: flex;
     position: relative;
     align-items: center;
 }
 
-.chat .container {
+.chat .container,
+.chat .input-group-container {
     position: unset;
 }
 
@@ -1069,10 +1074,8 @@ a:hover {
     background-color: #8c8c8c;
 }
 
-.unavailable:hover .tooltip,
-#attach-file:hover .tooltip,
-#emoji-button:hover .tooltip {
+button:hover .tooltip {
     opacity: 1;
     visibility: visible;
-    transition-delay: 0.3s;
+    transition-delay: 0.4s;
 }
