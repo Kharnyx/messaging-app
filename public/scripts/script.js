@@ -7,9 +7,9 @@ const chatHeader = document.getElementById("chat-header");
 const chatShadow = document.getElementById("chat-shadow");
 const chatFooterChat = document.querySelector("#chat-footer .chat");
 
-const inputText = document.querySelectorAll('input[type="text"]');
+const inputGroupContainers = document.querySelectorAll('.input-group-container');
 const messageInput = document.getElementById("chat-message-input");
-const postMessage = document.getElementById("send-message");
+const sendMessageBtn = document.getElementById("send-message");
 
 const fileInput = document.getElementById("file-input");
 const selectFileButton = document.getElementById("attach-file");
@@ -64,11 +64,11 @@ window.updateElementDimensions = function () {
     parseFloat(window.getComputedStyle(conversationParent).paddingBottom) +
     parseFloat(window.getComputedStyle(conversationParent).paddingTop);
 
-  conversationParent.style.height = `${window.innerHeight - conversationHeader.offsetHeight - conversationPadding
-    }px`;
+  conversationParent.style.height =
+    `${window.innerHeight - conversationHeader.offsetHeight}px`;
 
-  chatBody.style.height = `${window.innerHeight - chatFooter.offsetHeight - chatHeader.offsetHeight
-    }px`;
+  chatBody.style.height =
+    `${window.innerHeight - chatFooter.offsetHeight - chatHeader.offsetHeight}px`;
 
   chatShadow.style.transform = `translateY(${chatHeader.offsetHeight}px)`;
   conversationShadow.style.transform = `translateY(${conversationHeader.offsetHeight}px)`;
@@ -136,25 +136,26 @@ function checkChatFooterAlignment() {
 function positionTooltips() {
   const tooltips = document.querySelectorAll(".tooltip");
 
-  tooltips.forEach((tooltip) => {
+  for (let tooltip of tooltips) {
+    // Get the height of the parent and the tooltip
     const parentElement = tooltip.parentElement,
       parentHeight = parentElement.offsetHeight;
 
-    // Get the height of the parent and the tooltip
     const tooltipHeight = tooltip.offsetHeight,
       rect = tooltip.getBoundingClientRect();
 
-    // Calculate initial transform position to center the tooltip
-    let transform =
-      -parentHeight - Math.abs(tooltipHeight - parentHeight) / 2 - 8;
+    // Calculate initial transform position
+    let transform = (-parentHeight - tooltipHeight) / 2 - 12;
 
     const topPos = rect.top - tooltipHeight / 2;
 
+    // If the top of the tooltip is near the top swap its direction to underneath the element
     if (
       topPos < 15 ||
       parentElement.getBoundingClientRect().top + transform < 10
     ) {
       transform = Math.abs(transform); // Push the tooltip downward
+      // Change the attributes of the pseudo element to swap its direction.
       tooltip.style.setProperty("--triangle-bottom", "99%");
       tooltip.style.setProperty("--triangle-top", "none");
       tooltip.style.setProperty("--triangle-border-top-col", "transparent");
@@ -172,14 +173,18 @@ function positionTooltips() {
       transform -= rect.bottom - viewportHeight + 10; // Adjust to prevent overflow
     }
 
+    // Position the tooltip
     tooltip.style.transform = `translateY(${transform}px)`;
-  });
+  }
 }
 
 positionTooltips();
 
 function updateButtonState() {
-  inputText.forEach((element) => {
+  inputGroupContainers.forEach((element) => {
+    let input = element.querySelector("input");
+    let button = element.querySelector("button");
+    /*
     let idParts = element.id.split("-");
 
     let newClassName = "." + idParts[0];
@@ -189,35 +194,37 @@ function updateButtonState() {
     newClassName = newClassName + "-button";
 
     let correspondingButton = document.querySelector(newClassName);
+    */
 
     // Checks if the input field has a value
-    if (element.value.trim() !== "") {
+    if (input.value.trim()) {
       // If it does, make the button clickable
-      correspondingButton.classList.add("available");
-      correspondingButton.classList.remove("unavailable");
+      button.classList.add("available");
+      button.classList.remove("unavailable");
 
-      if (element === createConversationInput && !accountUsername) {
+      if (input === createConversationInput && !accountUsername) {
         // If the conversation input has a value, but the client doesnt have an account, make it not clickable
-        correspondingButton.classList.remove("available");
-        correspondingButton.classList.add("unavailable");
+        button.classList.remove("available");
+        button.classList.add("unavailable");
       }
     } else {
       // Make the button not clickable
-      if (element === messageInput && fileInput.value !== "") {
+      if (input === messageInput && fileInput.files.length) {
         // If the message field has an image attached, but no message, make the button clickable
-        correspondingButton.classList.add("available");
-        correspondingButton.classList.remove("unavailable");
+        button.classList.add("available");
+        button.classList.remove("unavailable");
       } else {
-        correspondingButton.classList.remove("available");
-        correspondingButton.classList.add("unavailable");
+        button.classList.remove("available");
+        button.classList.add("unavailable");
       }
     }
   });
 }
 
-inputText.forEach((element) => {
-  element.addEventListener("input", updateButtonState);
-  element.addEventListener("focus", updateButtonState);
+inputGroupContainers.forEach((element) => {
+  let input = element.querySelector("input");
+  input.addEventListener("input", updateButtonState);
+  input.addEventListener("focus", updateButtonState);
 });
 
 // Shows a list of attached images that the client wants to send
@@ -330,6 +337,7 @@ function removeAttachedFile(index) {
   filesArray[index] = null; // Remove the file from the array
 
   const dataTransfer = new DataTransfer();
+  // Rewrite array replacing the file to delete with an empty one
   for (let file of filesArray) {
     if (file != null) {
       dataTransfer.items.add(file);
@@ -347,12 +355,22 @@ function checkInfoHeight() {
   let filesArray = Array.from(fileInput.files);
 
   // Filter out any files with empty names or invalid names
-  filesArray = filesArray.filter(file => file.name.trim() !== "");
+  filesArray = filesArray.filter(file => file.name.trim());
 
   if (filesArray.length > 0) {
     root.style.setProperty("--file-info-height", "12em");
   } else {
+    // All files have been removed
     root.style.setProperty("--file-info-height", "3em");
+
+    // Make button unavailable if there is no message
+    if (!messageInput.value.trim()) {
+      sendMessageBtn.classList.remove("available");
+      sendMessageBtn.classList.add("unavailable");
+    }
+
+    // Delete anything left in the fileInput
+    fileInput.value = '';
   }
 
   window.updateElementDimensions();
