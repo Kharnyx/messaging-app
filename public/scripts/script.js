@@ -34,6 +34,8 @@ const borderWidth =
   parseFloat(computedStyle.getPropertyValue("--border-width")) *
   parseFloat(getComputedStyle(document.documentElement).fontSize);
 
+let previewFileProgressBarFill = [];
+
 // Updates dimensions of elements to corespond with the new screen dimensions
 window.updateElementDimensions = function () {
   if (window.innerWidth < window.innerHeight) {
@@ -243,19 +245,30 @@ window.updateAttachedFiles = function () {
     let fileName = file.name;
     let fileSize = file.size;
 
-    if (file.type.startsWith("image/")) {
-      const container = document.createElement("div");
+    const container = document.createElement("div");
+    container.className = "file-preview-container";
 
-      const imagePreview = document.createElement("div");
-      imagePreview.style.position = "relative";
-      imagePreview.style.display = "flex";
-      imagePreview.style.height = "100%";
+    const fileInfo = document.createElement("div");
+    fileInfo.className = "file-preview-information";
+
+    const progressBar = document.createElement("div");
+    progressBar.className = "upload-progress";
+
+    const progressFill = document.createElement("div");
+    progressFill.className = "upload-progress-fill";
+
+    progressBar.appendChild(progressFill);
+
+    if (file.type.startsWith("image/")) {
+      const imageWrapper = document.createElement("div");
+      imageWrapper.id = "file-preview";
 
       const image = document.createElement("img");
-      image.id = "file-preview";
+      image.style.height = "100%";
 
       const removeFile = document.createElement("div");
       removeFile.id = "remove-file";
+      removeFile.setAttribute("data-index", i);
 
       const X = document.createElement("i");
       X.className = "fa-solid fa-x";
@@ -270,22 +283,15 @@ window.updateAttachedFiles = function () {
 
       reader.readAsDataURL(file);
 
-      container.appendChild(imagePreview);
-      imagePreview.appendChild(image);
-      imagePreview.appendChild(removeFile);
+      imageWrapper.appendChild(image);
+      fileInfo.appendChild(imageWrapper);
+      fileInfo.appendChild(removeFile);
+      container.appendChild(fileInfo);
       attachedFiles.appendChild(container);
 
-      removeFile.addEventListener("click", () => {
-        container.remove();
-        removeAttachedFile(i);
+      imageWrapper.appendChild(progressBar);
 
-        // console.log(fileInput.files.length);
-
-        checkInfoHeight();
-      });
     } else if (file.type.startsWith("video/")) {
-      const container = document.createElement("div");
-      container.style.position = "relative";
 
       const videoUrl = URL.createObjectURL(file);
       const videoPreview = document.createElement("video");
@@ -298,6 +304,7 @@ window.updateAttachedFiles = function () {
 
       const removeFile = document.createElement("div");
       removeFile.id = "remove-file";
+      removeFile.setAttribute("data-index", i);
 
       const X = document.createElement("i");
       X.className = "fa-solid fa-x";
@@ -312,21 +319,60 @@ window.updateAttachedFiles = function () {
 
       reader.readAsDataURL(file);
 
-      container.appendChild(videoPreview);
-      container.appendChild(removeFile);
+      fileInfo.appendChild(videoPreview);
+      fileInfo.appendChild(removeFile);
+      container.appendChild(fileInfo);
       attachedFiles.appendChild(container);
 
-      removeFile.addEventListener("click", () => {
-        container.remove();
-        removeAttachedFile(i);
+      fileInfo.appendChild(progressBar);
 
-        // console.log(fileInput.files.length);
+    } else {
+      const infoWrapper = document.createElement("div");
+      infoWrapper.classList.add("unsupported-file");
 
-        checkInfoHeight();
-      });
+      const nameTxt = document.createElement("div");
+      nameTxt.id = "file-name";
+      nameTxt.textContent = file.name;
+
+      const sizeTxt = document.createElement("div");
+      sizeTxt.id = "file-size";
+      sizeTxt.textContent = window.formatFileSize(file.size);
+
+      const removeFile = document.createElement("div");
+      removeFile.id = "remove-file";
+      removeFile.setAttribute("data-index", i);
+
+      const X = document.createElement("i");
+      X.className = "fa-solid fa-x";
+
+      removeFile.appendChild(X);
+
+      infoWrapper.appendChild(nameTxt);
+      infoWrapper.appendChild(sizeTxt);
+      fileInfo.appendChild(infoWrapper);
+      fileInfo.appendChild(removeFile);
+      container.appendChild(fileInfo);
+      attachedFiles.appendChild(container);
+
+      infoWrapper.appendChild(progressBar);
     }
 
     // console.log(`Name: ${fileName}    Size: ${window.formatFileSize(fileSize)}`);
+  }
+
+  const removeFileButtons = document.querySelectorAll("#remove-file");
+  for (let element of removeFileButtons) {
+    element.addEventListener("click", () => {
+      element.parentElement.remove();
+
+      const index = parseInt(element.getAttribute("data-index"));
+
+      removeAttachedFile(index);
+
+      // console.log(fileInput.files);
+
+      checkInfoHeight();
+    });
   }
 
   // fileInformation.appendChild(fileInfo);
