@@ -34,6 +34,10 @@ body {
     box-sizing: border-box;
 }
 
+image {
+    height: 100%;
+}
+
 button {
     z-index: 999;
     background-color: var(--theme);
@@ -639,12 +643,53 @@ a:hover {
 #file-preview {
     margin: 0 0.5em;
     position: relative;
-    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+#file-preview:not(:has(.unsupported-file)) {
     border: 1px solid var(--border-color);
 }
 
-#image {
+.file-preview-container {
+    position: relative;
+    display: flex;
+}
+
+.file-preview-information {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.unsupported-file {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     height: 100%;
+    padding: 0.875em;
+    margin: 0 0.5em;
+    background-color: #93a692;
+}
+
+.upload-progress {
+    width: 100%;
+    height: 0.4em;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background: #e0e0e0;
+    overflow: hidden;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--theme);
+    transition: width 0.2s ease;
 }
 
 #remove-file {
@@ -689,7 +734,7 @@ a:hover {
     height: var(--file-info-height);
     width: calc(100vw - var(--conversations-width));
     overflow-x: auto;
-    padding: 5px 0;
+    padding: 0.3em;
 }
 
 .container,
