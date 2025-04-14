@@ -305,7 +305,7 @@ function isSameTime(timestamp1, timestamp2) {
   );
 }
 
-postMessage.addEventListener("click", () => {
+sendMessageBtn.addEventListener("click", () => {
   if (messagePosting) return;
   window.sendMessage();
 });
@@ -654,6 +654,30 @@ window.sendMessage = debounce(() => {
   if (accountUsername) messageData.senderUsername = accountUsername;
 
   if (validFiles.length > 0) {
+    /*
+    socket.send(JSON.stringify(messageData));
+
+    let filesRemaining = validFiles.length;
+
+    validFiles.forEach((file, index) => {
+      const container = attachedFiles.children[index];
+      const progressFill = container.querySelector(".upload-progress-fill");
+
+      uploadFileInChunks(file, socket, progressFill, messageData, () => {
+        console.log(`${file.name} uploaded`);
+
+        filesRemaining--;
+        if (filesRemaining === 0) {
+          messageInput.value = "";
+          fileInput.value = "";
+          window.updateAttachedFiles();
+        }
+      });
+    });
+    */
+
+
+
     // Read files as binary and send the binary data separately
     const fileObjects = Array.from(validFiles).map((file) => {
       return new Promise((resolve, reject) => {
@@ -685,20 +709,103 @@ window.sendMessage = debounce(() => {
 
         //console.log("Sending message with files:", fullMessageData);
         socket.send(JSON.stringify(fullMessageData)); // Send JSON metadata with binary data
+
+        messageInput.value = "";
+        fileInput.value = "";
+        window.updateAttachedFiles();
       })
       .catch((error) => {
         //console.error("Error reading files:", error);
       });
+
+    
+    /*
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        const arrayBuffer = reader.result;
+
+        // First, send the metadata (as JSON)
+        socket.send(JSON.stringify({
+          type: 'file-meta',
+          filename: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          senderId: userId,
+          sendTo: selectedConversation,
+          text: cleanedMessage,
+          timestamp: now
+        }));
+
+        // Then send the binary data
+        socket.send(arrayBuffer);
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Clear form here or after confirming upload success
+    messageInput.value = "";
+    fileInput.value = "";
+    window.updateAttachedFiles();
+    */
+
   } else {
     // Send only text message
     //console.log("sendingMessage", messageData);
     socket.send(JSON.stringify(messageData));
+    messageInput.value = "";
+    fileInput.value = "";
+    window.updateAttachedFiles();
+  }
+}, 150);
+
+function uploadFileInChunks(file, socket, progressFill, messageData, onAllFilesSent) {
+  const CHUNK_SIZE = 64 * 1024; // 64KB
+  let offset = 0;
+  const fileId = crypto.randomUUID();
+
+  function sendChunk() {
+    const chunk = file.slice(offset, offset + CHUNK_SIZE);
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const base64Chunk = window.arrayBufferToBase64(reader.result);
+
+      socket.send(JSON.stringify({
+        ...messageData,
+        type: "file-chunk",
+        fileId,
+        filename: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        chunk: base64Chunk,
+        offset,
+        isLastChunk: offset + CHUNK_SIZE >= file.size
+      }));
+
+      offset += CHUNK_SIZE;
+
+      const percent = Math.min((offset / file.size) * 100, 100);
+      progressFill.style.width = `${percent}%`;
+
+      if (offset < file.size) {
+        setTimeout(sendChunk, 0);
+      } else {
+        onAllFilesSent();
+      }
+    };
+
+    reader.onerror = () => {
+      console.error("Error reading file chunk");
+    }
+
+    reader.readAsArrayBuffer(chunk);
   }
 
-  messageInput.value = "";
-  fileInput.value = "";
-  window.updateAttachedFiles();
-}, 150);
+  sendChunk();
+}
 
 function createConversationWithUser(user, fromMessage) {
   let userInput = createConversationInput.value;
