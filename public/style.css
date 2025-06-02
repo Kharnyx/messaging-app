@@ -237,8 +237,12 @@ a:hover {
     white-space: normal;
     --triangle-top: 99%;
     --triangle-bottom: none;
+    --triangle-left: none;
+    --triangle-right: none;
     --triangle-border-top-col: var(--theme);
     --triangle-border-bottom-col: transparent;
+    --triangle-translateY: 0;
+    --triangle-rotation: 0deg;
 }
 
 .tooltip::after {
@@ -246,6 +250,11 @@ a:hover {
     position: absolute;
     top: var(--triangle-top);
     bottom: var(--triangle-bottom);
+    left: var(--triangle-left);
+    right: var(--triangle-right);
+    transform-origin: center;
+    transform: translateX(var(--triangle-translateY));
+    rotate: var(--triangle-rotation);
     width: 0;
     height: 0;
     border-left: 0.625em solid transparent;
