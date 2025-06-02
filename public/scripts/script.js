@@ -141,22 +141,32 @@ function positionTooltips() {
   for (let tooltip of tooltips) {
     // Get the height of the parent and the tooltip
     const parentElement = tooltip.parentElement,
-      parentHeight = parentElement.offsetHeight;
+      parentHeight = parentElement.offsetHeight,
+      parentWidth = parentElement.offsetWidth;
 
     const tooltipHeight = tooltip.offsetHeight,
+      tooltipWidth = tooltip.offsetWidth,
       rect = tooltip.getBoundingClientRect();
 
-    // Calculate initial transform position
-    let transform = (-parentHeight - tooltipHeight) / 2 - 12;
+    tooltip.style.setProperty("--triangle-rotation", "0");
+    tooltip.style.setProperty("--triangle-top", "99%");
+    tooltip.style.setProperty("--triangle-bottom", "none");
+    tooltip.style.setProperty("--triangle-translateY", "0");
+    tooltip.style.setProperty("--triangle-left", "none");
+    tooltip.style.setProperty("--triangle-right", "none");
+
+    // Calculate initial transformY position
+    let transformY = (-parentHeight - tooltipHeight) / 2 - 12;
+    let transformX = 0;
 
     const topPos = rect.top - tooltipHeight / 2;
 
     // If the top of the tooltip is near the top swap its direction to underneath the element
     if (
       topPos < 15 ||
-      parentElement.getBoundingClientRect().top + transform < 10
+      parentElement.getBoundingClientRect().top + transformY < 10
     ) {
-      transform = Math.abs(transform); // Push the tooltip downward
+      transformY = Math.abs(transformY); // Push the tooltip downward
       // Change the attributes of the pseudo element to swap its direction.
       tooltip.style.setProperty("--triangle-bottom", "99%");
       tooltip.style.setProperty("--triangle-top", "none");
@@ -172,11 +182,31 @@ function positionTooltips() {
     // Check if the tooltip overflows the bottom of the screen
     const viewportHeight = window.innerHeight;
     if (rect.top > viewportHeight - 10) {
-      transform -= rect.bottom - viewportHeight + 10; // Adjust to prevent overflow
+      transformY -= rect.bottom - viewportHeight + 10; // Adjust to prevent overflow
+    }
+
+    const viewportWidth = window.innerWidth;
+    if (rect.right > viewportWidth - 10) {
+      transformX = (-parentWidth - tooltipWidth) / 2 - 12;
+      tooltip.style.setProperty("--triangle-left", "99%");
+
+    } else if (rect.left < 10) {
+      transformX = Math.abs((-parentWidth - tooltipWidth) / 2 - 12);
+      tooltip.style.setProperty("--triangle-right", "99%");
+
+    }
+
+    if (transformX) {
+      transformY = 0;
+      tooltip.style.setProperty("--triangle-rotation", "90deg");
+      tooltip.style.setProperty("--triangle-translateX", `${-transformX}px`);
+      tooltip.style.setProperty("--triangle-top", "50%");
+      tooltip.style.setProperty("--triangle-bottom", "0");
+      tooltip.style.setProperty("--triangle-translateY", "-50%");
     }
 
     // Position the tooltip
-    tooltip.style.transform = `translateY(${transform}px)`;
+    tooltip.style.transform = `translate(${transformX}px, ${transformY}px)`;
   }
 }
 
