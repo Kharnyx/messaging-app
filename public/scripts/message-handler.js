@@ -411,7 +411,8 @@ function loadMessages(response) {
 
       if (msg.files && msg.fileTypes) {
         msg.files.forEach((fileEndpoint, index) => {
-          const fileUrl = apiBaseUrl + "/" + fileEndpoint;
+          let separator = fileEndpoint.startsWith("/") ? "" : "/";
+          const fileUrl = `${apiBaseUrl}${separator}${fileEndpoint}`;
           let fileType = msg.fileTypes[index].fileType;
           let fileSize = msg.fileTypes[index].fileSize;
           let fileName = msg.fileTypes[index].fileName;
