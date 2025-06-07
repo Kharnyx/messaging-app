@@ -202,16 +202,6 @@ a:hover {
     background-color: #ffffff;
 }
 
-@keyframes rotate {
-    0% {
-        transform: rotateZ(0deg);
-    }
-
-    100% {
-        transform: rotateZ(360deg);
-    }
-}
-
 .tooltip {
     position: absolute;
     box-sizing: content-box;
@@ -623,24 +613,32 @@ a:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
+    background-color: #ffffff;
     border-top: var(--border-width) solid var(--border-color);
-    overflow: hidden;
 }
 
-#new-messages {
+.scroll-bottom {
     position: absolute;
     display: none;
     align-items: center;
     justify-content: center;
     height: 2em;
-    width: 10em;
+    width: auto;
     border-radius: 10em;
+    padding: 1em 1.2em;
+    gap: 5px;
+    font-size: 1rem;
     background-color: #ffffff;
     transform: translateY(-50px);
-    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0px 2px 3px rgba(0, 0, 0, 0.2);
 }
 
-#new-messages p {
+.scroll-bottom:hover {
+    cursor: pointer !important;
+    animation: newMessages 2s infinite;
+}
+
+.scroll-bottom p {
     margin-left: 0.25em;
 }
 
@@ -906,15 +904,17 @@ a:hover {
     border-radius: 0.625em;
     margin-bottom: 0.125em;
     background-color: #93a692;
+    text-decoration: none;
+    outline: white;
     justify-content: center;
 }
 
-#file-name {
+.file-name {
     font-size: 0.875rem;
     color: #ffffff;
 }
 
-.message-container.from-me #file-name {
+.message-container.from-me .file-name {
     margin-left: 2em;
 }
 
@@ -926,11 +926,11 @@ a:hover {
     align-items: start;
 }
 
-.message-container.from-others #file-name {
+.message-container.from-others .file-name {
     margin-right: 2em;
 }
 
-#file-size {
+.file-size {
     font-size: 0.675rem;
     color: #dddddd;
 }
@@ -1076,7 +1076,7 @@ a:hover {
 
 .timestamp,
 .sender,
-#new-messages,
+#scroll-bottom-new,
 .conversation,
 .conversation-selected,
 #emoji-menu {
@@ -1116,6 +1116,13 @@ a:hover {
     cursor: pointer;
 }
 
+#open-file:hover .file-name {
+    text-decoration: underline;
+    text-decoration-color: #ffffff;
+    text-underline-offset: 1px;
+    text-decoration-thickness: 1px;
+}
+
 .tab:hover {
     background-color: #dddddd;
 }
@@ -1132,4 +1139,46 @@ button:hover .tooltip {
     opacity: 1;
     visibility: visible;
     transition-delay: 0.4s;
+}
+
+/* Animations */
+
+@keyframes newMessages {
+    0% {
+        transform: translateY(-50px);
+    }
+
+    40% {
+        transform: translateY(-50px);
+    }
+
+    45% {
+        transform: translateY(-47px);
+    }
+
+    57% {
+        transform: translateY(-53px);
+    }
+
+    65% {
+        transform: translateY(-47px);
+    }
+
+    70% {
+        transform: translateY(-50px);
+    }
+
+    100% {
+        transform: translateY(-50px);
+    }
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotateZ(0deg);
+    }
+
+    100% {
+        transform: rotateZ(360deg);
+    }
 }
