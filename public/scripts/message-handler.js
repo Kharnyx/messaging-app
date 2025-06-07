@@ -2,7 +2,8 @@
 const userIdtxt = document.getElementById("user-id");
 const addUser = document.getElementById("add-user");
 const createConversationInput = document.getElementById("user-id-input");
-const newMessages = document.getElementById("new-messages");
+const newMessages = document.getElementById("scroll-bottom-new");
+const scrollBottom = document.getElementById("scroll-bottom");
 const loadingContainer = document.getElementById("loading-container");
 const loadingMessage = document.getElementById("loading-message");
 const chatContainer = document.getElementById("chat-container");
@@ -325,28 +326,48 @@ addUser.addEventListener("click", () => {
 });
 
 newMessages.addEventListener("click", scrollToBottom);
+scrollBottom.addEventListener("click", scrollToBottom);
+
+let smoothScrollingActive = false;
 
 function scrollToBottom() {
+  newMessages.style.display = "none";
+  scrollBottom.style.display = "none";
+
+  const targetScrollTop = chatBody.scrollHeight - chatBody.clientHeight;
+  smoothScrollingActive = true;
+
   chatBody.scrollTo({
-    top: chatBody.scrollHeight,
+    top: targetScrollTop,
     behavior: "smooth",
   });
 
-  newMessages.style.display = "none";
+  const scrollEndHandler = () => {
+    if (Math.abs(chatBody.scrollTop - targetScrollTop) < 1) {
+      smoothScrollingActive = false;
+      chatBody.removeEventListener("scroll", scrollEndHandler);
+    }
+  };
+
+  chatBody.addEventListener('scroll', scrollEndHandler);
 }
 
 let chatBodyScrollDiff = 0;
-let newMessageSent = null;
+let newMessageSentElement = null;
+const bottomThreshold = 80;
 const bottomPadding = window.getComputedStyle(chatBody).paddingBottom;
 chatBody.addEventListener("scroll", () => {
-  let requirementToRead = newMessageSent.offsetHeight + parseInt(bottomPadding);
-  //console.log(requirementToRead)
-  //chatBodyScrollDiff = maxScroll - chatBody.scrollTop;
-  if (chatBodyScrollDiff < requirementToRead) {
-    newMessages.style.display = "none";
-  }
-
+  console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
   chatShadow.style.display = chatBody.scrollTop < 1 ? "none" : "block";
+
+  const distanceFromBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop;
+  //console.log(requirementToRead)
+  if (distanceFromBottom <= bottomThreshold) {
+    newMessages.style.display = "none";
+    scrollBottom.style.display = "none";
+  } else if (!smoothScrollingActive && newMessages.style.display === "none") {
+    scrollBottom.style.display = "flex";
+  }
 });
 
 function clearChatBody() {
@@ -359,11 +380,11 @@ function clearChatBody() {
   });
 }
 
-function loadMessages(response) {
-  let currentMaxScroll =
-    parseInt(chatBody.scrollHeight) - parseInt(chatBody.clientHeight);
-  let currentScrollPos = chatBody.scrollTop;
+let previousScrollTop = 0;
 
+let isAtBottom = false;
+
+function loadMessages(response) {
   let messages =
     response.messages || response.currentMessages || response.messagesToSend; // Extract messages from the response
 
@@ -385,10 +406,9 @@ function loadMessages(response) {
 
   //console.log("messages", messages);
 
-  clearChatBody();
+  clearChatBody(); // Clear existing messages before rendering new ones
 
   let previousProduct = null;
-
   let index = 0;
 
   updateCurrentDates();
@@ -433,18 +453,20 @@ function loadMessages(response) {
             vidImgParent.appendChild(image);
             fileParent.appendChild(vidImgParent);
           } else {
-            const file = document.createElement("div");
+            const file = document.createElement("a");
             file.id = "open-file";
+            file.href = fileUrl;
+            file.download = fileName;
             const sizeTxt = document.createElement("div");
-            sizeTxt.id = "file-size";
+            sizeTxt.className = "file-size";
             sizeTxt.textContent = window.formatFileSize(fileSize);
             const nameTxt = document.createElement("div");
-            nameTxt.id = "file-name";
+            nameTxt.className = "file-name";
             nameTxt.textContent = fileName;
 
-            file.addEventListener("click", function () {
-              window.open(fileUrl, "blank");
-            });
+            // file.addEventListener("click", function () {
+            //   window.open(fileUrl, "blank");
+            // });
 
             file.appendChild(nameTxt);
             file.appendChild(sizeTxt);
@@ -574,29 +596,29 @@ function loadMessages(response) {
       previousProduct = msg;
       index++;
 
-      newMessageSent = messageContainer;
+      newMessageSentElement = messageContainer;
     });
   }
 
-  if (
-    (messages.length > 0 &&
-      newMessageSent &&
-      messages[messages.length - 1].senderId === userId) ||
-    (newMessageSent &&
-      currentMaxScroll - currentScrollPos <
-      newMessageSent.offsetHeight + bottomPadding)
-  ) {
-    scrollToBottom();
+  chatBody.scrollTop = previousScrollTop;
 
-    lastMessages = [...messages];
+  // Scroll to bottom if:
+  // 1. The last message is from the current user (you)
+  // 2. The user was already at or near the bottom before new messages loaded
+  if (isAtBottom) {
+    console.log(isAtBottom);
+    chatBody.scrollTop = chatBody.scrollHeight - chatBody.clientHeight;
+  } else if ((messages.length > 0 && messages[messages.length - 1].senderId === userId)) {
+    scrollToBottom();
   } else {
-    if (
-      chatBody.scrollHeight > chatBody.clientHeight &&
-      chatBodyScrollDiff > 40
-    ) {
+    // If not scrolling to bottom, show the "New Messages" button
+    if (chatBody.scrollHeight > chatBody.clientHeight && !isAtBottom) {
       newMessages.style.display = "flex";
+      scrollBottom.style.display = "none";
     }
   }
+
+  lastMessages = [...messages];
 }
 
 function debounce(func, wait) {
@@ -719,7 +741,7 @@ window.sendMessage = debounce(() => {
         //console.error("Error reading files:", error);
       });
 
-    
+
     /*
     validFiles.forEach((file) => {
       const reader = new FileReader();
@@ -975,6 +997,10 @@ function switchConversations() {
 
   //console.log("messages", messages);
 
+  previousScrollTop = chatBody.scrollTop;
+  //console.log("currentscroll: " + previousScrollTop)
+  isAtBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop <= bottomThreshold;
+
   clearChatBody();
 
   if (messages) {
@@ -1008,7 +1034,7 @@ function switchConversations() {
 
   loadMessages(messagesToLoad);
 
-  chatBody.scrollTop = chatBody.scrollHeight;
+  //chatBody.scrollTop = chatBody.scrollHeight;
 }
 
 window.deleteMessages = function (key) {
