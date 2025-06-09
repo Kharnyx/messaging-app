@@ -91,6 +91,8 @@ window.connectWebSocket = function () {
     if (type === "error") {
       console.log(data);
     } else if (type === "ban") {
+      alert("You have been logged out");
+      window.close();
       window.location.href = "about:blank";
     } else if (type === "data") {
       maxPayload = data.maxPayload;
@@ -164,12 +166,12 @@ window.connectWebSocket = function () {
         conversationErrorMessage.style.display = "block";
 
         toggleCreateAccount();
+        
+        deleteAccountOpen = false;
+        toggleDeleteAccount();
 
         updateConversations();
         switchConversations();
-
-        deleteAccountOpen = false;
-        toggleDeleteAccount();
       }
     } else if (type === "userIdResult") {
       if (!data.result) {
@@ -926,6 +928,7 @@ function createConversationWithUser(user, fromMessage) {
         type: "createConversation",
         senderId: userId,
         otherUser: createConversationInput.value,
+        token: token,
         username: accountUsername,
       })
     );
@@ -1088,5 +1091,5 @@ function switchConversations() {
 
 window.deleteMessages = function (key) {
   //console.log("deleting messages...")
-  socket.send(JSON.stringify({ type: "delete", devKey: key }));
+  socket.send(JSON.stringify({ type: "delete", devKey: key, token: token }));
 };
