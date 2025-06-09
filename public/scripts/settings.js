@@ -203,7 +203,7 @@ confirmUsername.addEventListener("click", () => {
         return;
     }
 
-    socket.send(JSON.stringify({ type: "userIdTaken", newUserId: newUserId, oldUserId: userId, username: accountUsername }));
+    socket.send(JSON.stringify({ type: "userIdTaken", newUserId: newUserId, oldUserId: userId, username: accountUsername, token: token }));
 });
 
 deleteAccount.addEventListener("click", () => {
@@ -230,7 +230,8 @@ confDeleteAccount.addEventListener("click", () => {
         socket.send(JSON.stringify({
             type: "deleteAccount",
             username: accountUsername,
-            password: deleteAccountInput.value
+            password: deleteAccountInput.value,
+            token: token
         }));
 
         deleteAccountInput.value = "";
@@ -241,7 +242,7 @@ loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
     if (accountUsername) {
-        socket.send(JSON.stringify({ type: "logout", userId: userId }));
+        socket.send(JSON.stringify({ type: "logout", userId: userId, token: token }));
 
         return;
     }
@@ -260,11 +261,11 @@ loginForm.addEventListener("submit", (event) => {
     }
 
     if (createAccount) {
-        socket.send(JSON.stringify({ type: "signup", username: username, password: password, senderId: userId }));
+        socket.send(JSON.stringify({ type: "signup", username: username, password: password, senderId: userId, token: token }));
         createAccount = false;
         toggleCreateAccount();
     } else {
-        socket.send(JSON.stringify({ type: "login", username: username, password: password, senderId: userId }));
+        socket.send(JSON.stringify({ type: "login", username: username, password: password, senderId: userId, token: token }));
     }
 
     usernameInput.value = "";
@@ -290,6 +291,7 @@ function toggleCreateAccount() {
         loginSignupHeader.textContent = "Sign up";
         submitButton.textContent = "Sign up";
         confirmPasswordInput.style.display = "flex";
+        deleteAccount.style.visibility = "hidden";
     } else {
         if (accountUsername) {
             createAccountOption.style.visibility = "hidden";
@@ -298,11 +300,13 @@ function toggleCreateAccount() {
             usernameInput.style.display = "none";
             passwordInput.style.display = "none";
             accountDetails.style.display = "block";
+            deleteAccount.style.visibility = "visible";
         } else {
             createAccountOption.textContent = "or sign up now...";
             loginSignupHeader.textContent = "Log in";
             submitButton.textContent = "Log in";
             confirmPasswordInput.style.display = "none";
+            deleteAccount.style.visibility = "hidden";
         }
     }
 }
