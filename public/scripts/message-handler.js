@@ -428,6 +428,8 @@ function loadMessages(response) {
 
   messagesSentToMe = messages;
 
+  if (messagesSentToMe.length < 1) return;
+
   // Check for messages that were not supposed to be send to client (as a precaution)
   messages.forEach((msg, index) => {
     if (
