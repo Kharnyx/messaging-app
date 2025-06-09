@@ -12,6 +12,7 @@ const conversationErrorMessage = document.getElementById("add-conversation-error
 const currentUser = "";
 
 let devKey = "";
+let token = "";
 
 let messageList = { messages: [] };
 let lastMessages = [];
@@ -39,6 +40,7 @@ const apiBaseUrl = `https://${page}`;
 const maxReconnetAttempts = 5;
 let userIdsList = "";
 let userId = "";
+let usersOnline = [];
 
 const wsUrl = `wss://${page}`;
 const socket = new WebSocket(wsUrl);
@@ -88,22 +90,40 @@ window.connectWebSocket = function () {
 
     if (type === "error") {
       console.log(data);
+    } else if (type === "ban") {
+      window.location.href = "about:blank";
     } else if (type === "data") {
       maxPayload = data.maxPayload;
+    } else if (type === "token") {
+      token = data.token;
     } else if (type === "signup") {
       //console.log(data);
     } else if (type === "login") {
       //console.log(data);
 
       if (data.status === "success") {
+        let userDataUsername = accountDetails.querySelector("#account-details-username");
+        let userDataUserId = accountDetails.querySelector("#account-details-userid");
+        let userDataCreatedDate = accountDetails.querySelector("#account-details-created-date");
+
         let createdDate = new Date(data.account.createdDate);
         let date =
           `${String(createdDate.getDate()).padStart(2, "0")}/${createdDate.getUTCMonth() + 1
           }/${createdDate.getFullYear()}`;
+
         accountUsername = data.account.username;
         userId = data.account.userId;
         settingsUsername.textContent = `${userId}`;
         userIdtxt.textContent = `Your ID: ${userId}`;
+
+        let userIdExtract = userId.split('#');
+
+        inputUsername.value = userIdExtract[0];
+        usernameIdentifier.value = userIdExtract[1];
+
+        userDataCreatedDate.lastChild.textContent = date;
+        userDataUserId.lastChild.textContent = userId;
+        userDataUsername.lastChild.textContent = data.account.username;
 
         if (accountUsername) {
           loggedInUsername.textContent = `Account: ${accountUsername}`;
@@ -246,8 +266,24 @@ window.connectWebSocket = function () {
       } else {
         //console.error("Failed to delete messages. Reason: Invalid dev key. Please ensure you are using the correct developer key and try again.");
       }
+    } else if (type === "usersOnline") {
+      usersOnline = data.users;
+
+      const senderDivs = chatBody.querySelectorAll(".sender");
+
+      for (let element of senderDivs) {
+        let isOnline = usersOnline.indexOf(element.firstChild.textContent.trim()) >= 0;
+        let status = element.querySelector(".sender-status");
+
+        status.classList.remove("online", "offline");
+        status.classList.add(isOnline ? "online" : "offline");
+
+        element.lastChild.textContent = isOnline ? " online" : " offline";
+      }
+
+      //console.log(usersOnline)
     } else {
-      //console.log("Data recieved from server", data);
+      console.log("Data recieved from server", data);
     }
   };
 };
@@ -357,7 +393,7 @@ let newMessageSentElement = null;
 const bottomThreshold = 80;
 const bottomPadding = window.getComputedStyle(chatBody).paddingBottom;
 chatBody.addEventListener("scroll", () => {
-  // console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
+  //console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
   chatShadow.style.display = chatBody.scrollTop < 1 ? "none" : "block";
 
   const distanceFromBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop;
@@ -484,7 +520,20 @@ function loadMessages(response) {
 
       const senderDiv = document.createElement("div");
       senderDiv.className = "sender";
-      senderDiv.textContent = msg.senderId;
+      senderDiv.textContent = `${msg.senderId} `;
+
+
+      if (msg.senderId !== userId) {
+        let isOnline = usersOnline.indexOf(msg.senderId) >= 0;
+        const dot = document.createElement("i");
+        dot.className = "fa-regular fa-circle-dot sender-status";
+        dot.classList.add(isOnline ? "online" : "offline");
+        const status = document.createElement("span");
+        status.textContent = isOnline ? " online" : " offline";
+
+        senderDiv.appendChild(dot);
+        senderDiv.appendChild(status);
+      }
 
       const timestampDiv = document.createElement("div");
       timestampDiv.className = "timestamp";
@@ -606,7 +655,7 @@ function loadMessages(response) {
   // 1. The last message is from the current user (you)
   // 2. The user was already at or near the bottom before new messages loaded
   if (isAtBottom) {
-    // console.log(isAtBottom);
+    //console.log(isAtBottom);
     chatBody.scrollTop = chatBody.scrollHeight - chatBody.clientHeight;
   } else if ((messages.length > 0 && messages[messages.length - 1].senderId === userId)) {
     scrollToBottom();
@@ -668,6 +717,7 @@ window.sendMessage = debounce(() => {
 
   const messageData = {
     senderId: userId,
+    token: token,
     senderName: currentUser,
     text: cleanedMessage,
     timestamp: now,
@@ -687,7 +737,7 @@ window.sendMessage = debounce(() => {
       const progressFill = container.querySelector(".upload-progress-fill");
 
       uploadFileInChunks(file, socket, progressFill, messageData, () => {
-        // console.log(`${file.name} uploaded`);
+        console.log(`${file.name} uploaded`);
 
         filesRemaining--;
         if (filesRemaining === 0) {
@@ -698,7 +748,6 @@ window.sendMessage = debounce(() => {
       });
     });
     */
-
 
 
     // Read files as binary and send the binary data separately
