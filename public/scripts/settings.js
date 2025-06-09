@@ -186,6 +186,10 @@ changeUsername.addEventListener("click", () => {
 
 cancelUsername.addEventListener("click", () => {
     changeUserIdOpen = false;
+    let userIdExtract = userId.split('#');
+
+    inputUsername.value = userIdExtract[0];
+    usernameIdentifier.value = userIdExtract[1];
     toggleChangeUserId();
 });
 
@@ -228,6 +232,8 @@ confDeleteAccount.addEventListener("click", () => {
             username: accountUsername,
             password: deleteAccountInput.value
         }));
+
+        deleteAccountInput.value = "";
     }
 });
 
