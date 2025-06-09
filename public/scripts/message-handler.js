@@ -357,7 +357,7 @@ let newMessageSentElement = null;
 const bottomThreshold = 80;
 const bottomPadding = window.getComputedStyle(chatBody).paddingBottom;
 chatBody.addEventListener("scroll", () => {
-  console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
+  // console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
   chatShadow.style.display = chatBody.scrollTop < 1 ? "none" : "block";
 
   const distanceFromBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop;
@@ -606,7 +606,7 @@ function loadMessages(response) {
   // 1. The last message is from the current user (you)
   // 2. The user was already at or near the bottom before new messages loaded
   if (isAtBottom) {
-    console.log(isAtBottom);
+    // console.log(isAtBottom);
     chatBody.scrollTop = chatBody.scrollHeight - chatBody.clientHeight;
   } else if ((messages.length > 0 && messages[messages.length - 1].senderId === userId)) {
     scrollToBottom();
@@ -687,7 +687,7 @@ window.sendMessage = debounce(() => {
       const progressFill = container.querySelector(".upload-progress-fill");
 
       uploadFileInChunks(file, socket, progressFill, messageData, () => {
-        console.log(`${file.name} uploaded`);
+        // console.log(`${file.name} uploaded`);
 
         filesRemaining--;
         if (filesRemaining === 0) {
