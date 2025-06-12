@@ -1,1073 +1,1100 @@
-// server.js
-const express = require("express");
-const dotenv = require("dotenv");
-const http = require("http");
-const path = require("path");
-const fs = require("fs");
-const WebSocket = require("ws");
-// const clamav = require("clamav.js"); // Make sure this is installed if used
-const axios = require("axios");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
+// public/scripts/message-handler.js
+const userIdtxt = document.getElementById("user-id");
+const addUser = document.getElementById("add-user");
+const createConversationInput = document.getElementById("user-id-input");
+const newMessages = document.getElementById("scroll-bottom-new");
+const scrollBottom = document.getElementById("scroll-bottom");
+const loadingContainer = document.getElementById("loading-container");
+const loadingMessage = document.getElementById("loading-message");
+const chatContainer = document.getElementById("chat-container");
+const conversationErrorMessage = document.getElementById("add-conversation-error");
 
-dotenv.config();
+const currentUser = "";
 
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({
-  server,
-});
+let devKey = "";
+let token = "";
 
-const messageRateLimit = 25; // Maximum number of messages per minute
-const messageWindowMs = 60 * 1000; // Time window in ms (1 minute)
-const maxPayload = 10 * 1024 * 1024; // 10MB
+let messageList = { messages: [] };
+let lastMessages = [];
+let conversations = [];
+let messagesSentToMe = [];
 
-const pingIntervalDelay = 30 * 1000; // 30 seconds
+let selectedConversation = "";
+let maxPayload = 1 * 1024 * 1024;
 
-const userMessageCount = new Map();
+let now = new Date();
 
-const PORT = process.env.PORT || 3000;
-const DEV_KEY = process.env.DEV_KEY;
-const BETA_TESTER_KEY = process.env.BETA_TESTER_KEY;
+let currentDate = "";
+let currentDay = "";
+let currentMonth = "";
+let currentYear = "";
+let fullDate = "";
 
-const subDomain = "kharnyx-messaging-app";
+let messagePosting = false;
 
-const saltRounds = 10;
+const apiSubDomain = "messaging-app";
+const page = `${apiSubDomain}.onrender.com`;
+const apiBaseUrl = `https://${page}`;
 
-// --- Persistent Data Variables ---
-let messages = []; // This will be loaded from and saved to .data/messages.json
-let accounts = []; // This will be loaded from and saved to .data/accounts.json
-let conversations = {}; // This will be loaded from and saved to .data/conversations.json
+//let socket = "";
+const maxReconnetAttempts = 5;
+let userIdsList = "";
+let userId = "";
+let usersOnline = [];
 
-// --- Temporary/Volatile Data (does not need to be saved) ---
-const users = []; // In-memory mapping of userId to WebSocket
-let userIds = []; // In-memory list of active user IDs
-const clients = new Map(); // Stores clients and their details (in-memory)
-const cache = {}; // In-memory cache
-// const incomingFiles = new Map(); // Track uploads by user/socket (moved inside connection handler)
+const wsUrl = `wss://${page}`;
+const socket = new WebSocket(wsUrl);
 
-// --- Define Persistent Storage Paths ---
-const DATA_DIR = path.join(__dirname, ".data"); // The .data folder
-const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json");
-const MESSAGES_FILE = path.join(DATA_DIR, "messages.json");
-const CONVERSATIONS_FILE = path.join(DATA_DIR, "conversations.json");
-const UPLOADS_DIR = path.join("uploads"); // Uploaded files go here
+window.connectWebSocket = function () {
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 5;
 
-// Ensure the .data directory and its subdirectories exist
-const ensureDataDirectories = () => {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { rescursive: true });
-    console.log(".data directory created.");
-  }
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    console.log("uploads directory created.");
-  }
-};
-
-// Load data from JSON files
-const loadData = (filePath, defaultData) => {
-  if (fs.existsSync(filePath)) {
-    try {
-      const data = fs.readFileSync(filePath, "UTF8");
-      return JSON.parse(data);
-    } catch (error) {
-      console.error(`Error loading data from ${filePath}:`, error);
-      return defaultData;
+  socket.onclose = function () {
+    if (reconnectAttempts < maxReconnectAttempts) {
+      reconnectAttempts++;
+      //console.log("WebSocket connection closed, attempting to reconnect...");
+      setTimeout(window.connectWebSocket, 3000);
+    } else {
+      //console.log("Reconnection attempts exhausted");
+      location.reload();
     }
-  }
-  return defaultData;
-};
+  };
 
-// Save data to JSON file
-const saveData = (filePath, data) => {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "UTF8");
-    console.log(`Data saved to ${filePath}`);
-  } catch (error) {
-    console.error(`Error saving data to ${filePath}:`, error);
-  }
-};
+  socket.onopen = function () {
+    reconnectAttempts = 0;
+    chatContainer.style.display = "block";
+    window.updateElementDimensions();
+    window.resizeSettings();
+    loadingMessage.textContent = "Connected!";
+    loadingContainer.style.opacity = "0";
 
-// --- Initial data loading on Server startup ---
-ensureDataDirectories();
+    setTimeout(() => {
+      //console.log("WebSocket connection established");
+      loadingContainer.style.display = "none";
+    }, 500);
+  };
 
-accounts = loadData(ACCOUNTS_FILE, []);
-messages = loadData(MESSAGES_FILE, []);
-conversations = loadData(CONVERSATIONS_FILE, {});
+  socket.onerror = function (error) {
+    console.error("WebSocket error:", error);
 
-console.log(`Loaded ${accounts.length} accounts.`);
-console.log(`Loaded ${messages.length} messages.`);
-console.log(`Loaded ${Object.keys(conversations).length} conversations.`);
+    // When the app cannot connect to the server, display a different message and add a disconnected class
+    loadingMessage.innerHTML = "Cannot Connect To Server";
+    loadingContainer.classList.add("disconnected");
 
-// Serve static files from the 'public' folder
-app.use(express.static(path.join(process.cwd(), "public")));
+    // Wait 2 seconds and then remove the loader
 
-// Serve the HTML file (index.html) from the 'public' folder
-app.get("/", (req, res) => {
-  const redirectButton = `
-  <button onclick="window.open('https://kharnyx.github.io/messaging-app/', '_blank')">Messaging App</button>
-    <style>
-      button {
-        background-color: #80c27a;
-        color: #ffffff;
-        border: none;
-        padding: 10px;
-        border-radius: 0.5em;
-      }
-      button:hover {
-        background-color: #73a770;
-        cursor: pointer;
-      }
-    </style>
-    `;
+    setTimeout(() => {
+      // Make the loader dissapear
+      loadingContainer.querySelector(".loader").style.opacity = 0;
 
-  res.send(redirectButton);
+      setTimeout(() => {
+        // Wait 0.5 seconds and move the loading message to the center of the page
+        loadingMessage.style.transform = `translateY(
+    -${loadingMessage.getBoundingClientRect().top +
+          loadingMessage.offsetHeight / 2 -
+          window.innerHeight / 2}px)`;
+      }, 500);
+    }, 2000);
 
-  // res.sendFile(path.join(process.cwd(), "public/src", "index.html"));
-});
+    console.log("Connection failure");
+  };
 
-if (!fs.existsSync(UPLOADS_DIR)) {
-  // If it doesn't exist, create it
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  console.log("Uploads directory created.");
-} else {
-  console.log("Uploads directory already exists.");
-}
+  socket.onmessage = function (event) {
+    const data = JSON.parse(event.data);
+    const type = data.type;
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+    if (type === "error") {
+      console.log(data);
+    } else if (type === "ban") {
+      alert("You have been logged out");
+      window.close();
+      window.location.href = "about:blank";
+    } else if (type === "data") {
+      maxPayload = data.maxPayload;
+    } else if (type === "token") {
+      token = data.token;
+    } else if (type === "signup") {
+      //console.log(data);
+    } else if (type === "login") {
+      //console.log(data);
 
-// Storing connection IDs
-wss.on("connection", async (ws) => {
-  // Ping the client every 30 seconds to prevent socket disconnection
-  const pingInterval = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.ping();
-    }
-  }, pingIntervalDelay);
+      if (data.status === "success") {
+        let userDataUsername = accountDetails.querySelector("#account-details-username");
+        let userDataUserId = accountDetails.querySelector("#account-details-userid");
+        let userDataCreatedDate = accountDetails.querySelector("#account-details-created-date");
 
-  // Generate a unique user ID for each connection
+        let createdDate = new Date(data.account.createdDate);
+        let date =
+          `${String(createdDate.getDate()).padStart(2, "0")}/${createdDate.getUTCMonth() + 1
+          }/${createdDate.getFullYear()}`;
 
-  const userId = generateUserId();
+        accountUsername = data.account.username;
+        userId = data.account.userId;
+        settingsUsername.textContent = `${userId}`;
+        userIdtxt.textContent = `Your ID: ${userId}`;
 
-  const clientInfo = { userId };
-  userMessageCount.set(userId, { count: 0, timestamp: Date.now() });
+        let userIdExtract = userId.split('#');
 
-  const incomingFiles = new Map(); // Track uploads by user/socket
+        inputUsername.value = userIdExtract[0];
+        usernameIdentifier.value = userIdExtract[1];
 
-  // Associate the WebSocket connection with the user ID
-  users[userId] = ws;
+        userDataCreatedDate.lastChild.textContent = date;
+        userDataUserId.lastChild.textContent = userId;
+        userDataUsername.lastChild.textContent = data.account.username;
 
-  userIds.push(userId);
-
-  let token = crypto.randomBytes(50).toString("hex");
-
-  clients.set(ws, { userId: userId, token: token });
-
-  console.log(`New user connected with ID: ${userId}`);
-  console.log(`Current users online: `, userIds);
-
-  sendStatusToClients();
-
-  //let sendTo = "text";
-
-  // Send the user their unique ID (so they can use it in messages)
-  ws.send(JSON.stringify({ type: "userId", userId }));
-  ws.send(JSON.stringify({ type: "token", token }));
-  //ws.send(JSON.stringify({ type: "message", messages }));
-
-  for (let client of wss.clients) {
-    let messagesToSend = [];
-    for (let message of messages) {
-      const clientInfo = clients.get(client);
-      //console.log(clientInfo);
-      if (
-        (message.sendTo && message.sendTo.includes(clientInfo.userId)) ||
-        !message.sendTo ||
-        message.senderUsername === clientInfo.username
-      ) {
-        messagesToSend.push(message);
-      }
-    }
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: "firstMessage", messagesToSend }));
-    }
-  }
-
-  ws.send(JSON.stringify({ type: "data", maxPayload: maxPayload }));
-
-  //console.log(wss.clients);
-  //ws.send(JSON.stringify({ type: "sendTo", sendTo }));
-
-  for (let client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: "userIdList", userIds }));
-    }
-  }
-
-  ws.on("pong", () => {
-    console.log("Pong recieved from client");
-  });
-
-  // Handle incoming messages
-  ws.on("message", async (message) => {
-    const userStats = userMessageCount.get(userId);
-    const currentTimestamp = Date.now();
-
-    if (typeof message === "string") {
-      try {
-        const data = JSON.parse(message);
-
-        if (data.type === "file-meta") {
-          // Save metadata so we can use it when the binary arrives
-          incomingFiles.set(userId, {
-            filename: data.filename,
-            fileSize: data.fileSize,
-            fileType: data.fileType,
-            senderId: data.senderId,
-            senderUsername: data.senderUsername,
-            senderName: data.senderName,
-            sendTo: data.sendTo,
-            token: data.token,
-            text: data.text,
-            timestamp: data.timestamp,
-          });
-
-          return; // Wait for the binary to come next
+        if (accountUsername) {
+          loggedInUsername.textContent = `Account: ${accountUsername}`;
+          deleteAccount.style.display = "flex";
+        } else {
+          loggedInUsername.textContent = "ACCOUNT (Not logged in)";
+          deleteAccount.style.display = "none";
         }
 
-        // Other non-file messages (login, chat, etc.)
-        // existing logic here...
+        conversationErrorMessage.style.display = "none";
 
-        // Parse the string as JSON to extract metadata
-        // This part was duplicated in your original code.
-        // It's handled below where `JSON.parse(messageStr)` is called.
-        // For consistency with your original, I'm keeping the flow,
-        // but it's good to note this could be refactored.
-      } catch (e) {
-        console.error("Invalid JSON message:", e);
+        toggleCreateAccount();
+
+        updateConversations();
+        switchConversations();
       }
-    }
+    } else if (type === "logout") {
+      accountUsername = null;
+      userId = data.userId;
+      settingsUsername.textContent = `${userId}`;
+      userIdtxt.textContent = `Your ID: ${userId}`;
 
-    // Check if the message is a buffer (binary data)
-    if (Buffer.isBuffer(message)) {
-      const fileMeta = incomingFiles.get(userId);
+      loggedInUsername.textContent = "ACCOUNT (Not logged in)";
+      deleteAccount.style.display = "none";
 
-      if (!fileMeta) {
-        console.warn("Binary received without metadata, ignoring.");
-        // return;
+      conversationErrorMessage.style.display = "block";
+
+      toggleCreateAccount();
+
+      updateConversations();
+      switchConversations();
+    } else if (type === "deleteAccount") {
+      //console.log(data);
+      if (data.status === "success") {
+        accountUsername = null;
+        loggedInUsername.textContent = "ACCOUNT (Not logged in)";
+
+        conversationErrorMessage.style.display = "block";
+
+        toggleCreateAccount();
+
+        deleteAccountOpen = false;
+        toggleDeleteAccount();
+
+        updateConversations();
+        switchConversations();
       }
+    } else if (type === "userIdResult") {
+      if (!data.result) {
+        userId = newUserId;
+        settingsUsername.textContent = `${userId}`;
+        userIdtxt.textContent = `Your ID: ${userId}`;
 
-      if (fileMeta) {
-        const {
-          filename,
-          fileSize,
-          fileType,
-          senderId,
-          senderUsername,
-          senderName,
-          sendTo,
-          token,
-          text,
-          timestamp,
-        } = fileMeta;
+        //changeUsernamePanel.classList.remove("open");
+        changeUserIdOpen = false;
+        toggleChangeUserId();
 
-        if (clients.get(ws)?.token != token) {
-          ws.send(
-            JSON.stringify({
-              type: "ban",
-              status: "error",
-              message: "Access Denied",
-            })
-          );
-          
-          return;
+        for (let i = conversationParent.children.length - 1; i >= 0; i--) {
+          const child = conversationParent.children[i];
+          if (child.className.includes("conversation")) {
+            conversationParent.removeChild(child);
+          }
         }
+      }
+    } else if (type === "createConversation") {
+      //console.log(data);
+      if (data.status === "success") {
+        createConversationWithUser(data.otherUser, true);
+      }
+    } else if (type === "updateClients") {
+      for (let i = conversationParent.children.length - 1; i >= 0; i--) {
+        const child = conversationParent.children[i];
+        if (child.className.includes("conversation")) {
+          conversationParent.removeChild(child);
+        }
+      }
 
-        const uniqueName = `${Date.now()}-${crypto
-          .randomBytes(8)
-          .toString("hex")}-${filename}`;
-        const filePath = path.join(UPLOADS_DIR, uniqueName);
+      //console.log("conversations OLD", conversations);
 
-        fs.writeFile(filePath, message, (err) => {
-          console.log(`Binary file ${uniqueName} saved successfully.`);
+      //conversations = conversations.map(item => item.users === data.oldUserId ? data.newUserId : item);
 
-          messages.push({
-            senderId,
-            senderUsername,
-            senderName,
-            text,
-            timestamp,
-            files: [filePath],
-            fileTypes: [
-              {
-                fileType,
-                fileSize,
-                fileName: filename,
-              },
-            ],
-            sendTo,
-          });
-          // Save messages after a new file message is added
-          saveData(MESSAGES_FILE, messages);
-
-          sendMessagesToClients();
-
-          incomingFiles.delete(userId); // Clean up after processing
+      conversations.forEach((conversation, ci) => {
+        conversation.users.forEach((user, ui) => {
+          if (user === data.oldUserId) {
+            conversations[ci].users[ui] = data.newUserId;
+          }
         });
+      });
 
-        return;
+      //console.log("conversations NEW", conversations);
+
+      conversations = [];
+
+      updateConversations();
+      switchConversations();
+    } else if (type === "userIdList") {
+      userIdsList = data.userIds;
+      //console.log("List of User ID's recieved from server:", userIdsList);
+    } else if (type === "userId") {
+      // Store the user ID on the client side
+      userId = data.userId;
+      userIdtxt.textContent = `Your ID: ${userId}`;
+      settingsUsername.textContent = `${userId}`;
+
+      const userIdArray = userId.split("#");
+      usernameIdentifier.value = userIdArray[1];
+      inputUsername.value = userIdArray[0];
+      //console.log("User ID recieved from server:", data);
+    } else if (type === "sendTo") {
+      //console.log("sending message to", data);
+    } else if (type === "message" || type === "firstMessage") {
+      //console.log("Messages recieved from server:", data);
+      messageList = data;
+      updateConversations();
+      switchConversations();
+
+      if (type === "firstMessage") {
+        chatBody.scrollTop = chatBody.scrollHeight;
       }
-      // Convert the buffer to a string (only for JSON part)
-      const messageStr = message.toString("utf8");
+    } else if (type === "delete") {
+      if (data.status === "success") {
+        clearChatBody();
+        lastMessages = [];
+        conversations = [];
+        messagesSentToMe = [];
+        messageList = [];
 
-      const {
-        type,
-        senderId: senderId,
-        senderUsername,
-        senderName,
-        text,
-        timestamp,
-        sendTo,
-        newUserId,
-        oldUserId,
-        devKey,
-        token,
-        username,
-        password,
-        otherUser,
-      } = JSON.parse(messageStr); // This parse was here in original code for buffer path
-      console.log(token)
-      if (clients.get(ws)?.token != token) {
-        ws.send(
-          JSON.stringify({
-            type: "ban",
-            status: "error",
-            message: "Access Denied",
-          })
-        );
-        
-        console.error("Banned user");
-        
-        return;
+        for (let i = conversationParent.children.length - 1; i >= 0; i--) {
+          if (
+            conversationParent.children[i].className.includes("conversation")
+          ) {
+            conversationParent.removeChild(conversationParent.children[i]);
+          }
+        }
+
+        updateConversations();
+        switchConversations();
+
+        //console.log("SUCCESS: All messages have been successfully deleted. The system is now reset.");
+      } else {
+        //console.error("Failed to delete messages. Reason: Invalid dev key. Please ensure you are using the correct developer key and try again.");
       }
+    } else if (type === "usersOnline") {
+      usersOnline = data.users;
 
-      if (devKey !== DEV_KEY) {
-        if (currentTimestamp - userStats.timestamp > messageWindowMs) {
-          userStats.count = 0;
-          userStats.timestamp = currentTimestamp;
-        }
+      const senderDivs = chatBody.querySelectorAll(".sender");
 
-        if (userStats.count > messageRateLimit) {
-          ws.send(
-            JSON.stringify({ type: "error", message: "Rate limit exceeded" })
-          );
-          return;
-        }
+      for (let element of senderDivs) {
+        let isOnline = usersOnline.indexOf(element.firstChild.textContent.trim()) >= 0;
+        let status = element.querySelector(".sender-status");
 
-        userStats.count++;
-      }
+        status.classList.remove("online", "offline");
+        status.classList.add(isOnline ? "online" : "offline");
 
-      if (type === "userIdTaken") {
-        console.log("requesting to change userId");
-        ws.send(
-          JSON.stringify({
-            type: "userIdResult",
-            result: userIds.includes(newUserId),
-          })
-        );
-
-        if (newUserId && oldUserId) {
-          if (!userIds.includes(newUserId)) {
-            // userId = newUserId; // This refers to a local `userId` variable from the connection handler
-            // To properly update the client's current session userId, you'd update clients.set()
-            // and the `userId` in this specific closure for the `on('message')` handler.
-            // For persistence, only the `accounts` and `messages` data needs `saveData` call.
-
-            users[newUserId] = ws;
-            delete users[oldUserId];
-
-            userIds = userIds.map((item) =>
-              item === oldUserId ? newUserId : item
-            );
-
-            Array.from(messages).forEach((msg, index) => {
-              if (msg.senderId === oldUserId) {
-                msg.senderId = newUserId;
-              }
-
-              if (typeof msg.sendTo === "string") {
-                if (msg.sendTo.includes(oldUserId)) {
-                  msg.sendTo = msg.sendTo.replace(oldUserId, newUserId);
-                }
-              } else if (Array.isArray(msg.sendTo)) {
-                msg.sendTo.forEach((item, index) => {
-                  if (item === oldUserId) {
-                    msg.sendTo[index] = newUserId;
-                  }
-                });
-              }
-            });
-            // Save messages after a userId change might affect them
-            saveData(MESSAGES_FILE, messages);
-
-            // message = message.map((item) => // This line is incorrect, `message` is the raw incoming data
-            //   item === oldUserId ? newUserId : item
-            // );
-            clients.set(ws, {
-              userId: newUserId,
-              username: clients.get(ws)?.username,
-              token: clients.get(ws)?.token
-            }); // Preserve username
-
-            for (let account of accounts) {
-              if (account.username === username) {
-                account.userId = newUserId;
-              }
-            }
-            // Save accounts after a userId change in an account
-            saveData(ACCOUNTS_FILE, accounts);
-
-            ws.send(
-              JSON.stringify({ type: "userIdTaken", newUserId: newUserId })
-            );
-
-            sendMessagesToClients();
-
-            for (let client of wss.clients) {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ type: "userIdList", userIds }));
-                if (client !== ws) {
-                  client.send(
-                    JSON.stringify({
-                      type: "updateClients",
-                      oldUserId: oldUserId,
-                      newUserId: newUserId,
-                    })
-                  );
-                }
-              }
-            }
-          }
-        }
-
-        return;
-      } else if (type === "delete") {
-        if (devKey === DEV_KEY) {
-          try {
-            await deleteMessages();
-          } catch (error) {
-            console.log("error deleting messages", error);
-          }
-
-          ws.send(JSON.stringify({ type: "delete", status: "success" }));
-        } else {
-          ws.send(JSON.stringify({ type: "delete", status: "fail" }));
-        }
-
-        return;
-      } else if (type === "signup") {
-        if (username && password) {
-          for (const account of accounts) {
-            if (account.username === username) {
-              ws.send(
-                JSON.stringify({
-                  type: "signup",
-                  status: "fail",
-                  message: "Username already exists",
-                })
-              );
-              return;
-            }
-          }
-
-          hashPassword(password).then((hashedPassword) => {
-            const accountDetails = {
-              username: username,
-              password: hashedPassword,
-              createdDate: new Date().toISOString(),
-              userId: userId,
-            };
-
-            accounts.push(accountDetails);
-            // Save accounts after signup
-            saveData(ACCOUNTS_FILE, accounts);
-
-            console.log(`Creating account ${username} for user ${userId}`);
-
-            ws.send(
-              JSON.stringify({
-                type: "signup",
-                status: "success",
-                data: accountDetails,
-              })
-            );
-          });
-        }
-
-        return;
-      } else if (type === "login") {
-        if (username && password) {
-          let accountKeys = Object.values(accounts);
-          for (const account of accountKeys) {
-            if (account.username === username) {
-              verifyPassword(password, account.password)
-                .then((match) => {
-                  if (match) {
-                    ws.send(
-                      JSON.stringify({
-                        type: "login",
-                        status: "success",
-                        account: Object.fromEntries(
-                          Object.entries(account).filter(
-                            ([key, value]) => key !== "password"
-                          )
-                        ),
-                      })
-                    );
-                    clients.set(ws, {
-                      username: username,
-                      userId: account.userId,
-                      token: clients.get(ws)?.token
-                    });
-                    delete users[userId];
-                    userIds[userIds.indexOf(userId)] = account.userId; // Add the actual logged-in userId
-
-                    sendStatusToClients();
-                    sendMessagesToClients();
-                    console.log(`${userId} logged into account ${username}`);
-                    //clients.set(ws, { userId: userId, username: username, token: clients.get(ws)?.token });
-                  } else {
-                    ws.send(
-                      JSON.stringify({
-                        type: "login",
-                        status: "fail",
-                        message: "Invalid credentials",
-                      })
-                    );
-                  }
-                })
-                .catch((error) => {
-                  console.error("Error verifying password:", error);
-                  ws.send(
-                    JSON.stringify({
-                      type: "login",
-                      status: "error",
-                      message: "Error verifying password",
-                    })
-                  );
-                });
-              return;
-            }
-          }
-
-          ws.send(
-            JSON.stringify({
-              type: "login",
-              status: "fail",
-              message: "Username not found",
-            })
-          );
-        }
-
-        return;
-      } else if (type === "logout") {
-        let newGeneratedUserId = generateUserId();
-
-        userIds[userIds.indexOf(clients.get(ws)?.userId)] = newGeneratedUserId; // Add the actual logged-in userId
-
-        clients.set(ws, { userId: newGeneratedUserId, token: clients.get(ws)?.token });
-
-        delete users[userId];
-        users[newGeneratedUserId] = ws;
-
-        console.log(userIds);
-        sendStatusToClients();
-
-        console.log(`User ${userId} logged out of account`);
-
-        ws.send(
-          JSON.stringify({
-            type: "logout",
-            status: "success",
-            userId: newGeneratedUserId,
-          })
-        );
-      } else if (type === "deleteAccount") {
-        if (username && password) {
-          for (let [index, account] of accounts.entries()) {
-            if (account.username === username) {
-              verifyPassword(password, account.password).then((match) => {
-                if (match) {
-                  let conversationKeys = Object.keys(conversations);
-                  for (let acc of conversationKeys) {
-                    conversations[acc] = conversations[acc].filter(
-                      (conversation) => {
-                        return !(
-                          conversation.includes(account.username) &&
-                          conversation.includes(acc) &&
-                          conversation.length <= 2
-                        );
-                      }
-                    );
-                  }
-                  delete conversations[account.username];
-                  // Save conversations after account deletion
-                  saveData(CONVERSATIONS_FILE, conversations);
-
-                  if (messages.length > 0) {
-                    // Added check for length
-                    messages = messages.filter(
-                      (message) => message.senderUsername !== account.username
-                    );
-
-                    for (let message of messages) {
-                      if (message.sendTo && Array.isArray(message.sendTo)) {
-                        message.sendTo = message.sendTo.filter(
-                          (user) => user !== account.userId
-                        );
-                      }
-                    }
-
-                    console.log(messages[0].sendTo);
-
-                    messages = messages.filter((message) => {
-                      if (Array.isArray(message.sendTo)) {
-                        return !(
-                          message.sendTo.length === 1 &&
-                          message.sendTo[0] === message.senderId
-                        );
-                      }
-                      return true; // Keep the message if sendTo is not an array
-                    });
-
-                    // Save messages after account deletion
-                    saveData(MESSAGES_FILE, messages);
-                  }
-
-                  accounts.splice(index, 1);
-                  // Save accounts after account deletion
-                  saveData(ACCOUNTS_FILE, accounts);
-
-                  ws.send(
-                    JSON.stringify({
-                      type: "deleteAccount",
-                      status: "success",
-                      message: `Deleted account ${username}`,
-                    })
-                  );
-
-                  console.log(`Deleted account ${username}`);
-
-                  sendMessagesToClients();
-
-                  return;
-                }
-              });
-            }
-          }
-        }
-
-        ws.send(
-          JSON.stringify({
-            type: "deleteAccount",
-            status: "fail",
-            message: "Username not found",
-          })
-        );
-
-        return;
-      } else if (type === "createConversation") {
-        let conversationCreated = false; // Flag to track if conversation was created
-        for (let account1 of accounts) {
-          if (account1.username === username) {
-            for (let account2 of accounts) {
-              if (
-                account2.username !== username &&
-                account2.userId === otherUser
-              ) {
-                let conversation = [];
-                conversation.push(account1.username);
-                conversation.push(account2.username);
-
-                (conversations[account2.username] =
-                  conversations[account2.username] || []).push(conversation);
-                (conversations[account1.username] =
-                  conversations[account1.username] || []).push(conversation);
-                // Save conversations after creating a new one
-                saveData(CONVERSATIONS_FILE, conversations);
-
-                ws.send(
-                  JSON.stringify({
-                    type: "createConversation",
-                    status: "success",
-                    otherUser: otherUser,
-                  })
-                );
-                conversationCreated = true;
-                return; // Exit the loop and function once created
-              }
-            }
-          }
-        }
-        // If we reach here, conversation was not created
-        if (!conversationCreated) {
-          ws.send(
-            JSON.stringify({
-              type: "createConversation",
-              status: "fail",
-              message: "UserId not found",
-            })
-          );
-        }
-
-        return;
+        element.lastChild.textContent = isOnline ? " online" : " offline";
       }
 
-      console.log("Received message as string:", messageStr);
-
-      try {
-        // Parse the string as JSON to extract metadata
-        const data = JSON.parse(messageStr); // This parsing was already done above for buffer path
-
-        if (clients.get(ws)?.token != data.token) {
-          ws.send(
-            JSON.stringify({
-              type: "ban",
-              status: "error",
-              message: "Access Denied",
-            })
-          );
-          
-          return;
-        }
-
-        console.log("Parsed data:", data);
-
-        console.log("file data:", data.files);
-
-        if (data.files && Array.isArray(data.files)) {
-          let files = [];
-          let fileTypes = [];
-
-          let cumulativeSize = 0;
-
-          // Calculate the size of all attached files cumulatively
-          for (let file of data.files) {
-            cumulativeSize += file.fileSize;
-          }
-
-          if (cumulativeSize > maxPayload) {
-            // If file size exceeds the maxPayload
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "File size exceeds the maximum limit",
-              })
-            );
-            return;
-          }
-
-          // Handling file data
-          data.files.forEach((file, index) => {
-            const { filename, fileData, fileSize, fileType } = file;
-            const bufferedFileData = base64ToArrayBuffer(fileData);
-
-            console.log("Received file:", filename, "File Size:", fileSize);
-
-            // Ensure bufferedFileData is a Buffer, not a string
-            if (bufferedFileData instanceof ArrayBuffer) {
-              // Convert the ArrayBuffer to a Node.js Buffer for saving
-              const bufferData = Buffer.from(bufferedFileData);
-
-              // Generate a unique filename
-              const fileName = `${Date.now()}-${crypto
-                .randomBytes(8)
-                .toString("hex")}-${filename}`;
-              console.log(UPLOADS_DIR);
-              const filePath = path.join(UPLOADS_DIR, fileName);
-
-              // Save the file to disk
-              fs.writeFile(filePath, bufferData, (err) => {
-                if (err) {
-                  console.error("Error saving file:", err);
-                } else {
-                  console.log(`File ${fileName} saved successfully.`);
-                }
-              });
-
-              files.push(filePath);
-
-              const fileInfo = {
-                fileType: fileType,
-                fileSize: fileSize,
-                fileName: filename,
-              };
-
-              fileTypes.push(fileInfo);
-
-              let imageUrl = `https://${subDomain}.glitch.me/uploads/${fileName}`;
-              // handleFileScan(imageUrl); // Uncomment if clamav is installed
-            } else {
-              console.error("Invalid file data received.");
-            }
-          });
-
-          messages.push({
-            senderId: senderId,
-            senderUsername: senderUsername,
-            senderName: senderName,
-            text: text,
-            timestamp: timestamp,
-            files: files,
-            fileTypes: fileTypes,
-            sendTo: sendTo,
-          });
-          // Save messages after a new message with files is added
-          saveData(MESSAGES_FILE, messages);
-
-          sendMessagesToClients();
-        } else {
-          // Handle case without files, just the text message
-          console.log("Received text message:", data.text);
-
-          messages.push({
-            senderId: senderId,
-            senderUsername: senderUsername,
-            senderName: senderName,
-            text: text,
-            timestamp: timestamp,
-            files: [],
-            fileTypes: [],
-            sendTo: sendTo,
-          });
-          // Save messages after a new text message is added
-          saveData(MESSAGES_FILE, messages);
-
-          sendMessagesToClients();
-        }
-      } catch (error) {
-        console.error("Error parsing JSON message:", error);
-      }
+      //console.log(usersOnline)
     } else {
-      console.log("Received non-buffer message:", message);
+      console.log("Data recieved from server", data);
     }
-  });
-
-  // Handle disconnection
-  ws.on("close", () => {
-    // Clean up the user from the list when they disconnect
-    delete users[userId];
-    let target = clients.get(ws)?.userId;
-    userIds = userIds.filter((item) => item !== target);
-    clients.delete(ws);
-    clearInterval(pingInterval);
-    console.log(`User with ID: ${userId} disconnected`);
-
-    sendStatusToClients();
-  });
-});
-
-const sendStatusToClients = () => {
-  for (let client of wss.clients) {
-    client.send(
-      JSON.stringify({
-        type: "usersOnline",
-        users: userIds,
-      })
-    );
-  }
+  };
 };
 
-// Function to send messages to clients
-const sendMessagesToClients = () => {
-  const currentMessages = [...messages]; // Make sure messages are current
-  //console.log(currentMessages);
-
-  for (let client of wss.clients) {
-    let messagesToSend = [];
-    for (let message of messages) {
-      const clientInfo = clients.get(client);
-      //console.log(clientInfo);
-      if (
-        (message.sendTo && message.sendTo.includes(clientInfo.userId)) ||
-        !message.sendTo ||
-        message.senderUsername === clientInfo.username
-      ) {
-        messagesToSend.push(message);
-      }
-    }
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(
-        JSON.stringify({ type: "message", messages: messagesToSend })
-      );
-      console.log("Sending message to client", clients.get(client).userId);
-    }
-  }
+window.onload = function () {
+  window.connectWebSocket();
 };
 
-function generateUserId() {
-  let newUserId = 1000; // Start with 4 digits
-  let foundId = false;
-  while (!foundId) {
-    if (userIds.includes(`User#${newUserId}`)) {
-      foundId = false;
-    } else {
-      foundId = true;
-      for (let account of accounts) {
-        if (`User#${newUserId}` === account.userId) {
-          foundId = false;
-          break;
-        }
-      }
-    }
-
-    if (!foundId) newUserId++;
-  }
-
-  return `User#${newUserId}`;
-}
-
-function base64ToArrayBuffer(base64) {
-  // Use Node.js Buffer for base64 to ArrayBuffer conversion
-  const buffer = Buffer.from(base64, "base64");
-  return buffer.buffer.slice(
-    buffer.byteOffset,
-    buffer.byteOffset + buffer.byteLength
+function logWarning() {
+  console.log(
+    `%cCaution: Do not paste any external code into this area unless you fully understand its functionality. Always verify the source of the code before running it to ensure the safety of your account and data. Proceed with caution and take responsibility for your actions.`,
+    "background: red; color: white; padding: 3px; border-radius: 2px;"
   );
 }
 
-async function deleteFiles() {
-  if (fs.existsSync(UPLOADS_DIR)) {
-    const files = fs.readdirSync(UPLOADS_DIR);
+setInterval(logWarning, 10000);
 
-    const deletePromises = files.map(async (file) => {
-      const filePath = path.join(UPLOADS_DIR, file);
+logWarning();
 
-      try {
-        // Using async version of stat
-        const stats = await fs.promises.stat(filePath);
-        if (stats.isFile()) {
-          console.log(`Deleting file: ${filePath}`);
-          await fs.promises.unlink(filePath);
-          console.log(`Deleted file: ${filePath}`);
-        }
-      } catch (error) {
-        console.error(`Error with file ${filePath}:`, error);
+function updateCurrentDates() {
+  now = new Date();
+
+  currentDate = now.getDate();
+  currentDay = now.toLocaleString("en-us", { weekday: "short" });
+  currentMonth = now.toLocaleString("en-us", { month: "short" });
+  currentYear = now.getFullYear();
+  fullDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(
+    currentDate
+  ).padStart(2, "0")}`;
+}
+
+function isSameTime(timestamp1, timestamp2) {
+  const date1 = new Date(timestamp1);
+  const date2 = new Date(timestamp2);
+
+  const maxMinuteDiff = 30 * 60 * 1000; // Minutes in miliseconds
+  const difference = Math.abs(date1.getTime() - date2.getTime());
+
+  return (
+    (date1.getUTCHours() === date2.getUTCHours() &&
+      date1.getUTCMinutes() === date2.getUTCMinutes() &&
+      date1.getUTCSeconds() === date2.getUTCSeconds()) ||
+    difference < maxMinuteDiff
+  );
+}
+
+sendMessageBtn.addEventListener("click", () => {
+  if (messagePosting) return;
+  window.sendMessage();
+});
+
+messageInput.addEventListener("keypress", (e) => {
+  if (messagePosting) return;
+  if (e.key === "Enter" && document.activeElement === messageInput) {
+    e.preventDefault();
+    window.sendMessage();
+  }
+});
+
+addUser.addEventListener("click", () => {
+  if (accountUsername) {
+    createConversationWithUser(createConversationInput.value, false);
+  }
+});
+
+newMessages.addEventListener("click", scrollToBottom);
+scrollBottom.addEventListener("click", scrollToBottom);
+
+let smoothScrollingActive = false;
+
+function scrollToBottom() {
+  newMessages.style.display = "none";
+  scrollBottom.style.display = "none";
+
+  const targetScrollTop = chatBody.scrollHeight - chatBody.clientHeight;
+  smoothScrollingActive = true;
+
+  chatBody.scrollTo({
+    top: targetScrollTop,
+    behavior: "smooth",
+  });
+
+  const scrollEndHandler = () => {
+    if (Math.abs(chatBody.scrollTop - targetScrollTop) < 1) {
+      smoothScrollingActive = false;
+      chatBody.removeEventListener("scroll", scrollEndHandler);
+    }
+  };
+
+  chatBody.addEventListener('scroll', scrollEndHandler);
+}
+
+let chatBodyScrollDiff = 0;
+let newMessageSentElement = null;
+const bottomThreshold = 80;
+const bottomPadding = window.getComputedStyle(chatBody).paddingBottom;
+chatBody.addEventListener("scroll", () => {
+  //console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
+  chatShadow.style.display = chatBody.scrollTop < 1 ? "none" : "block";
+
+  const distanceFromBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop;
+  //console.log(requirementToRead)
+  if (distanceFromBottom <= bottomThreshold) {
+    newMessages.style.display = "none";
+    scrollBottom.style.display = "none";
+  } else if (!smoothScrollingActive && newMessages.style.display === "none") {
+    scrollBottom.style.display = "flex";
+  }
+});
+
+function clearChatBody() {
+  const children = Array.from(chatBody.children);
+
+  children.forEach((child) => {
+    if (child.id !== "chat-shadow") {
+      chatBody.removeChild(child);
+    }
+  });
+}
+
+let previousScrollTop = 0;
+
+let isAtBottom = false;
+
+function loadMessages(response) {
+  let messages =
+    response.messages || response.currentMessages || response.messagesToSend; // Extract messages from the response
+
+  messagesSentToMe = messages;
+
+  if (messagesSentToMe.length < 1) return;
+
+  // Check for messages that were not supposed to be send to client (as a precaution)
+  messages.forEach((msg, index) => {
+    if (
+      !(
+        (msg.sendTo && msg.sendTo.includes(userId)) ||
+        msg.senderId === userId ||
+        msg.sendTo === ""
+      )
+    ) {
+      //console.log("removing item", index);
+      messages.splice(index, 1);
+    }
+  });
+
+  //console.log("messages", messages);
+
+  clearChatBody(); // Clear existing messages before rendering new ones
+
+  let previousProduct = null;
+  let index = 0;
+
+  updateCurrentDates();
+  if (messages) {
+    messages.forEach((msg) => {
+      const msgDates = new Date(msg.timestamp);
+      const msgTime = msg.timestamp
+        ? window.formatUTCTo12Hour(msg.timestamp)
+        : "Unknown Time";
+
+      const formattedTimestamp = msgTime;
+      const isFromMe = userId === msg.senderId;
+
+      const messageContainer = document.createElement("div");
+      messageContainer.className = `message-container ${isFromMe ? "from-me" : "from-others"
+        }`;
+
+      const fileParent = document.createElement("div");
+      fileParent.id = "files";
+
+      if (msg.files && msg.fileTypes) {
+        msg.files.forEach((fileEndpoint, index) => {
+          let separator = fileEndpoint.startsWith("/") ? "" : "/";
+          const fileUrl = `${apiBaseUrl}${separator}${fileEndpoint}`;
+          let fileType = msg.fileTypes[index].fileType;
+          let fileSize = msg.fileTypes[index].fileSize;
+          let fileName = msg.fileTypes[index].fileName;
+
+          const vidImgParent = document.createElement("div");
+
+          if (fileType.startsWith("video/")) {
+            const video = document.createElement("video");
+            video.src = fileUrl;
+            video.controls = true;
+
+            vidImgParent.appendChild(video);
+            fileParent.appendChild(vidImgParent);
+          } else if (fileType.startsWith("image/")) {
+            const image = document.createElement("img");
+            image.src = fileUrl;
+
+            vidImgParent.appendChild(image);
+            fileParent.appendChild(vidImgParent);
+          } else {
+            const file = document.createElement("a");
+            file.id = "open-file";
+            file.href = fileUrl;
+            file.download = fileName;
+            const sizeTxt = document.createElement("div");
+            sizeTxt.className = "file-size";
+            sizeTxt.textContent = window.formatFileSize(fileSize);
+            const nameTxt = document.createElement("div");
+            nameTxt.className = "file-name";
+            nameTxt.textContent = fileName;
+
+            // file.addEventListener("click", function () {
+            //   window.open(fileUrl, "blank");
+            // });
+
+            file.appendChild(nameTxt);
+            file.appendChild(sizeTxt);
+            fileParent.appendChild(file);
+          }
+
+          const br = document.createElement("br");
+          br.style.height = "0";
+
+          if (index != msg.files.length - 1) {
+            //fileParent.appendChild(br);
+          }
+        });
       }
+
+      const senderDiv = document.createElement("div");
+      senderDiv.className = "sender";
+      senderDiv.textContent = `${msg.senderId} `;
+
+
+      if (msg.senderId !== userId) {
+        let isOnline = usersOnline.indexOf(msg.senderId) >= 0;
+        const dot = document.createElement("i");
+        dot.className = "fa-regular fa-circle-dot sender-status";
+        dot.classList.add(isOnline ? "online" : "offline");
+        const status = document.createElement("span");
+        status.textContent = isOnline ? " online" : " offline";
+
+        senderDiv.appendChild(dot);
+        senderDiv.appendChild(status);
+      }
+
+      const timestampDiv = document.createElement("div");
+      timestampDiv.className = "timestamp";
+      timestampDiv.textContent = formattedTimestamp;
+
+      const messageDiv = document.createElement("div");
+      messageDiv.className = "message";
+
+      const messageText = document.createElement("span");
+      messageText.textContent = msg.text;
+
+      messageDiv.appendChild(messageText);
+
+      const msgDate = msgDates.getUTCDate();
+      const msgDay = msgDates.toLocaleString("en-us", {
+        weekday: "short",
+        timeZone: "UTC",
+      });
+      const msgMonth = msgDates.toLocaleString("en-us", {
+        month: "short",
+        timeZone: "UTC",
+      });
+      const msgYear = msgDates.getFullYear();
+      const msgFullDate = `${msgYear}-${String(
+        msgDates.getUTCMonth() + 1
+      ).padStart(2, "0")}-${String(msgDates.getUTCDate()).padStart(2, "0")}`;
+
+      messageDiv.addEventListener("click", function () {
+        if (timestamp.className.includes("new-day")) return;
+        //console.log(chatBody.scrollTop)
+
+        const scrollPosition = chatBody.scrollTop;
+        const maxScroll = chatBody.scrollHeight - chatBody.clientHeight;
+
+        const scrollChange = 19.26;
+
+        if (timestamp.style.display === "none") {
+          timestamp.style.display = "block";
+          chatBody.scrollTop = scrollPosition + scrollChange;
+        } else {
+          if (scrollPosition < maxScroll) {
+            chatBody.scrollTop = scrollPosition - scrollChange;
+          }
+          timestamp.style.display = "none";
+        }
+      });
+
+      let previousMsgFullDate = null;
+      if (previousProduct) {
+        const previousDate = new Date(previousProduct.timestamp);
+        previousMsgFullDate = `${previousDate.getFullYear()}-${String(
+          previousDate.getUTCMonth() + 1
+        ).padStart(2, "0")}-${String(previousDate.getUTCDate()).padStart(
+          2,
+          "0"
+        )}`;
+      }
+
+      if (
+        !previousProduct ||
+        (previousProduct.senderId !== msg.senderId && msg.senderId !== userId)
+      ) {
+        messageContainer.appendChild(senderDiv);
+      }
+
+      messageContainer.appendChild(fileParent);
+      if (msg.text.trim()) {
+        messageContainer.appendChild(messageDiv);
+      }
+      messageContainer.appendChild(timestampDiv);
+
+      const br = document.createElement("br");
+
+      chatBody.insertBefore(messageContainer, chatShadow);
+
+      if (
+        previousProduct !== null &&
+        previousProduct.senderId !== msg.senderId
+      ) {
+        chatBody.insertBefore(br, messageContainer);
+      }
+
+      const container =
+        chatBody.getElementsByClassName("message-container")[index];
+      const firstChild = container.firstChild;
+      const timestamp = container.getElementsByClassName("timestamp")[0];
+
+      if (
+        !previousProduct ||
+        (previousMsgFullDate !== msgFullDate &&
+          !isSameTime(previousProduct.timestamp, msg.timestamp))
+      ) {
+        timestampDiv.classList.add("new-day");
+        timestampDiv.textContent =
+          fullDate !== msgFullDate
+            ? `${msgDay}, ${msgDate} ${msgMonth} at ${msgTime}`
+            : `Today ${msgTime}`;
+
+        container.insertBefore(timestamp, firstChild);
+      }
+
+      if (
+        previousProduct !== null &&
+        isSameTime(previousProduct.timestamp, msg.timestamp)
+      ) {
+        timestamp.style.display = "none";
+      }
+
+      previousProduct = msg;
+      index++;
+
+      newMessageSentElement = messageContainer;
+    });
+  }
+
+  chatBody.scrollTop = previousScrollTop;
+
+  // Scroll to bottom if:
+  // 1. The last message is from the current user (you)
+  // 2. The user was already at or near the bottom before new messages loaded
+  if (isAtBottom) {
+    //console.log(isAtBottom);
+    chatBody.scrollTop = chatBody.scrollHeight - chatBody.clientHeight;
+  } else if ((messages.length > 0 && messages[messages.length - 1].senderId === userId)) {
+    scrollToBottom();
+  } else {
+    // If not scrolling to bottom, show the "New Messages" button
+    if (chatBody.scrollHeight > chatBody.clientHeight && !isAtBottom) {
+      newMessages.style.display = "flex";
+      scrollBottom.style.display = "none";
+    }
+  }
+
+  lastMessages = [...messages];
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+window.sendMessage = debounce(() => {
+  const messageText = messageInput.value;
+  if (!messageText.trim() && fileInput.value === "") {
+    console.error("Message cannot be empty");
+    return;
+  }
+
+  let files = Array.from(fileInput.files);
+  let validFiles = files.filter(file => file.name.trim() !== "");
+
+  // console.log(files);
+
+  let cumullativeFileSize = 0;
+
+  for (let file of validFiles) {
+    cumullativeFileSize += file.size;
+  }
+
+  if (cumullativeFileSize > maxPayload) {
+    console.error("File size exceeds the maximum limit");
+    return;
+  }
+
+  updateCurrentDates();
+
+  let cleanedMessage = window.ProfanityFilter.clean(messageText);
+
+  if (!messageText.trim()) cleanedMessage = "";
+
+  const formData = new FormData();
+
+  formData.append("senderId", userId);
+  formData.append("senderName", currentUser);
+  formData.append("text", cleanedMessage);
+  formData.append("timestamp", now);
+  formData.append("sendTo", selectedConversation);
+
+  const messageData = {
+    senderId: userId,
+    token: token,
+    senderName: currentUser,
+    text: cleanedMessage,
+    timestamp: now,
+    sendTo: selectedConversation,
+  };
+
+  if (accountUsername) messageData.senderUsername = accountUsername;
+
+  if (validFiles.length > 0) {
+    /*
+    socket.send(JSON.stringify(messageData));
+
+    let filesRemaining = validFiles.length;
+
+    validFiles.forEach((file, index) => {
+      const container = attachedFiles.children[index];
+      const progressFill = container.querySelector(".upload-progress-fill");
+
+      uploadFileInChunks(file, socket, progressFill, messageData, () => {
+        console.log(`${file.name} uploaded`);
+
+        filesRemaining--;
+        if (filesRemaining === 0) {
+          messageInput.value = "";
+          fileInput.value = "";
+          window.updateAttachedFiles();
+        }
+      });
+    });
+    */
+
+
+    // Read files as binary and send the binary data separately
+    const fileObjects = Array.from(validFiles).map((file) => {
+      return new Promise((resolve, reject) => {
+        let reader = new FileReader();
+        reader.onloadend = () => {
+          const fileData = reader.result; // This is an ArrayBuffer
+          const base64FileData = window.arrayBufferToBase64(fileData);
+          //console.log("file data", file)
+          const fileInfo = Array.from(file);
+          resolve({
+            filename: file.name,
+            fileData: base64FileData,
+            fileSize: file.size,
+            fileType: file.type,
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
     });
 
-    // Wait for all deletions to complete
-    await Promise.all(deletePromises);
-    console.log("All files deleted");
+    // Once files are read, combine them with the message data
+    Promise.all(fileObjects)
+      .then((fileArray) => {
+        const fullMessageData = {
+          ...messageData,
+          files: fileArray,
+        };
+
+        //console.log("Sending message with files:", fullMessageData);
+        socket.send(JSON.stringify(fullMessageData)); // Send JSON metadata with binary data
+
+        messageInput.value = "";
+        fileInput.value = "";
+        window.updateAttachedFiles();
+      })
+      .catch((error) => {
+        //console.error("Error reading files:", error);
+      });
+
+
+    /*
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        const arrayBuffer = reader.result;
+
+        // First, send the metadata (as JSON)
+        socket.send(JSON.stringify({
+          type: 'file-meta',
+          filename: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          senderId: userId,
+          sendTo: selectedConversation,
+          text: cleanedMessage,
+          timestamp: now
+        }));
+
+        // Then send the binary data
+        socket.send(arrayBuffer);
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Clear form here or after confirming upload success
+    messageInput.value = "";
+    fileInput.value = "";
+    window.updateAttachedFiles();
+    */
+
   } else {
-    console.log(`Directory ${UPLOADS_DIR} does not exist.`);
+    // Send only text message
+    //console.log("sendingMessage", messageData);
+    socket.send(JSON.stringify(messageData));
+    messageInput.value = "";
+    fileInput.value = "";
+    window.updateAttachedFiles();
   }
-}
+}, 150);
 
-async function deleteMessages() {
-  messages = [];
-  // Save messages after deletion
-  saveData(MESSAGES_FILE, messages);
+function uploadFileInChunks(file, socket, progressFill, messageData, onAllFilesSent) {
+  const CHUNK_SIZE = 64 * 1024; // 64KB
+  let offset = 0;
+  const fileId = crypto.randomUUID();
 
-  const cacheKey = "messages";
-  delete cache[cacheKey];
+  function sendChunk() {
+    const chunk = file.slice(offset, offset + CHUNK_SIZE);
+    const reader = new FileReader();
 
-  await deleteFiles();
+    reader.onload = () => {
+      const base64Chunk = window.arrayBufferToBase64(reader.result);
 
-  console.log("All messages deleted");
-}
+      socket.send(JSON.stringify({
+        ...messageData,
+        type: "file-chunk",
+        fileId,
+        filename: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        chunk: base64Chunk,
+        offset,
+        isLastChunk: offset + CHUNK_SIZE >= file.size
+      }));
 
-async function hashPassword(password) {
-  try {
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    return hashedPassword;
-  } catch (error) {
-    console.error("Error hashing password:", error);
-  }
-}
+      offset += CHUNK_SIZE;
 
-async function verifyPassword(enteredPassword, storedPassword) {
-  try {
-    const isMatch = await bcrypt.compare(enteredPassword, storedPassword);
-    if (isMatch) {
-      return true;
-    } else {
-      return false;
+      const percent = Math.min((offset / file.size) * 100, 100);
+      progressFill.style.width = `${percent}%`;
+
+      if (offset < file.size) {
+        setTimeout(sendChunk, 0);
+      } else {
+        onAllFilesSent();
+      }
+    };
+
+    reader.onerror = () => {
+      console.error("Error reading file chunk");
     }
-  } catch (error) {
-    console.error("Error verifying password:", error);
-    return false;
+
+    reader.readAsArrayBuffer(chunk);
   }
+
+  sendChunk();
 }
 
-// Function to download a file from a temporary URL
-async function downloadFile(url, outputPath) {
-  const writer = fs.createWriteStream(outputPath);
+function createConversationWithUser(user, fromMessage) {
+  let userInput = createConversationInput.value;
+  //console.log(fromMessage);
+  if (
+    (!(userIdsList.includes(user) || fromMessage) ||
+      user === userId ||
+      !user) &&
+    !(!user && fromMessage)
+  ) {
+    //console.log(`Failed to add user: ${user}`);
+    return;
+  }
 
-  const response = await axios({
-    url,
-    method: "GET",
-    responseType: "stream", // This ensures the response is a readable stream (file)
+  for (let i = 0; i < conversations.length; i++) {
+    const usersInConversation = conversations[i]["users"];
+    const usersSet = [user, userId].sort();
+
+    if (usersInConversation.sort().join() === usersSet.join()) {
+      //console.log(`Conversation with ${user} already exists.`);
+      return;
+    }
+  }
+
+  let newItem = Object.keys(conversations).length;
+  conversations[newItem] = { users: [] };
+
+  const conversation = document.createElement("div");
+  conversation.className = "conversation";
+  if (!user) conversation.id = "global";
+
+  const conversationTitle = document.createElement("h2");
+  conversationTitle.textContent = user || "Global Chat";
+
+  const conversationChevron = document.createElement("i");
+  conversationChevron.className =
+    "fa-solid fa-chevron-right conversation-chevron";
+
+  if (fromMessage) {
+    if (conversation.id !== "global")
+      conversations[newItem]["users"] = [user, userId].sort();
+    else conversations[newItem]["users"] = [""];
+  } else {
+    socket.send(
+      JSON.stringify({
+        type: "createConversation",
+        senderId: userId,
+        otherUser: createConversationInput.value,
+        token: token,
+        username: accountUsername,
+      })
+    );
+
+    //console.log(conversations);
+
+    return;
+  }
+
+  //console.log("adding convo length: ", conversations[newItem]["users"].length);
+
+  if (!conversations[newItem]["users"].length) {
+    conversations.splice(newItem, 1);
+    return;
+  }
+
+  conversation.addEventListener("click", function () {
+    if (
+      selectedConversation === conversations[newItem]["users"] ||
+      (conversations[newItem]["users"][0] === selectedConversation &&
+        selectedConversation === "")
+    ) {
+      if (conversationsOpen) {
+        conversationsOpen = false;
+        window.updateElementDimensions();
+      }
+
+      return;
+    }
+
+    const conversationEl = document.querySelectorAll(".conversation-selected");
+    conversationEl.forEach((el) => (el.className = "conversation"));
+
+    conversation.className = "conversation-selected";
+
+    selectedConversation = conversations[newItem]["users"];
+
+    if (!selectedConversation[0]) {
+      selectedConversation = "";
+    }
+
+    switchConversations();
+
+    if (conversationsOpen) {
+      conversationOpen = false;
+      window.updateElementDimensions();
+    }
+    //console.log(`Conversation switched to the user/s: ${selectedConversation}`);
   });
 
-  response.data.pipe(writer);
-
-  return new Promise((resolve, reject) => {
-    writer.on("finish", resolve);
-    writer.on("error", reject);
-  });
+  conversation.appendChild(conversationTitle);
+  conversation.appendChild(conversationChevron);
+  conversationParent.appendChild(conversation);
 }
 
-// Function to scan the downloaded file with ClamAV
-function scanFile(filePath) {
-  // Pinging ClamAV daemon to ensure it's accessible
-  // clamav.ping("127.0.0.1", 3310, (err) => {
-  //   if (err) {
-  //     console.error("ClamAV daemon is not running or unreachable:", err);
-  //     return;
-  //   }
+function updateConversations() {
+  let messages =
+    messageList.messages ||
+    messageList.currentMessages ||
+    messageList.messagesToSend;
 
-  //   // Scan the file if ClamAV is reachable
-  //   clamav.scanFile(filePath, (err, object) => {
-  //     if (err) {
-  //       console.error("Error during scan:", err);
-  //       return;
-  //     }
+  if (!document.getElementById("global")) {
+    createConversationWithUser("", true);
+  }
 
-  //     if (object.isInfected) {
-  //       console.log("File is infected!");
-  //     } else {
-  //       console.log("File is clean!");
-  //     }
+  const conversationEl = document.querySelectorAll(".conversation-selected");
+  if (!conversationEl.length) {
+    document.getElementById("global").className = "conversation-selected";
+  }
 
-  //     // Clean up: delete the temporary file after scanning
-  //     fs.unlinkSync(filePath);
-  //   });
-  // });
-  console.warn(
-    "ClamAV scanning is currently commented out. Ensure `clamav.js` is installed and configured if you want to use it."
+  if (messages) {
+    messages.forEach((msg) => {
+      if (
+        msg.sendTo &&
+        msg.sendTo.includes(userId) &&
+        msg.senderId !== userId
+      ) {
+        createConversationWithUser(msg.senderId, true);
+      } else if (msg.sendTo && msg.senderId === userId) {
+        let newSendTo = [...msg.sendTo];
+        newSendTo = newSendTo.filter((item) => item !== userId);
+
+        createConversationWithUser(newSendTo, true);
+      }
+    });
+  }
+
+  let conversationChevrons = document.getElementsByClassName(
+    "conversation-chevron"
   );
-  fs.unlinkSync(filePath); // Delete the temp file even if ClamAV is commented out
-}
-
-// Main function that handles downloading and scanning
-async function handleFileScan(tempFileUrl) {
-  const tempFilePath = path.join(__dirname, "tempfile"); // Path to save the downloaded file
-
-  try {
-    // Step 1: Download the file from the temporary URL
-    //await downloadFile(tempFileUrl, tempFilePath);
-    console.log("File downloaded successfully");
-
-    // Step 2: Scan the downloaded file with ClamAV
-    scanFile(tempFilePath);
-  } catch (error) {
-    console.error("Error downloading or scanning the file:", error);
+  for (let chevron of conversationChevrons) {
+    chevron.style.display = conversationsOpen ? "block" : "none";
   }
+
+  //console.log("conversations", conversations);
+
+  /*
+  let newConversationsList = [];
+
+  for (let i = 0; i < conversations.length; i++)  {
+    if (conversations[i]["users"].length) {
+      newConversationsList.push(conversations[i]);
+    }
+  }
+  conversations = [...newConversationsList];
+  */
 }
 
-// Start the HTTP server on the specified port
-server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+function switchConversations() {
+  let messagesToLoad = {
+    messages: [],
+  };
+
+  let messages =
+    messageList.messages ||
+    messageList.currentMessages ||
+    messageList.messagesToSend;
+
+  //console.log("messages", messages);
+
+  previousScrollTop = chatBody.scrollTop;
+  //console.log("currentscroll: " + previousScrollTop)
+  isAtBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop <= bottomThreshold;
+
+  clearChatBody();
+
+  if (messages) {
+    if (!selectedConversation[0]) {
+      messages.forEach((msg) => {
+        if (!msg.sendTo) {
+          messagesToLoad.messages.push(msg);
+        }
+      });
+    } else {
+      messages.forEach((msg) => {
+        let sentTo = msg.sendTo;
+        //console.log(sentTo.includes(userId) && selectedConversation.includes(msg.senderId));
+        //console.log(`${sentTo} includes? ${selectedConversation} && ${msg.senderId} === ${userId}`);
+
+        let addressedTo = [...sentTo];
+        if (!addressedTo.includes(msg.senderId)) addressedTo.push(msg.senderId);
+
+        //console.log("adressed", addressedTo);
+        //console.log("convo", selectedConversation);
+
+        if (addressedTo.sort().join() === selectedConversation.sort().join()) {
+          //console.log("adding message to priv chat", msg);
+          messagesToLoad.messages.push(msg);
+        }
+      });
+    }
+  }
+
+  //console.log("PM convo", messagesToLoad);
+
+  loadMessages(messagesToLoad);
+
+  //chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+window.deleteMessages = function (key) {
+  //console.log("deleting messages...")
+  socket.send(JSON.stringify({ type: "delete", devKey: key, token: token }));
+};
