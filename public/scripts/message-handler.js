@@ -32,8 +32,8 @@ let fullDate = "";
 
 let messagePosting = false;
 
-const apiSubDomain = "kharnyx-messaging-app";
-const page = `${apiSubDomain}.glitch.me`;
+const apiSubDomain = "messaging-app-bci4";
+const page = `${apiSubDomain}.onrender.com`;
 const apiBaseUrl = `https://${page}`;
 
 //let socket = "";
