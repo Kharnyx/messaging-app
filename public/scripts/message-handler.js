@@ -81,6 +81,21 @@ window.connectWebSocket = function () {
     loadingMessage.innerHTML = "Cannot Connect To Server";
     loadingContainer.classList.add("disconnected");
 
+    // Wait 2 seconds and then remove the loader
+
+    setTimeout(() => {
+      // Make the loader dissapear
+      loadingContainer.querySelector(".loader").style.opacity = 0;
+
+      setTimeout(() => {
+        // Wait 0.5 seconds and move the loading message to the center of the page
+        loadingMessage.style.transform = `translateY(
+    -${loadingMessage.getBoundingClientRect().top +
+          loadingMessage.offsetHeight / 2 -
+          window.innerHeight / 2}px)`;
+      }, 500);
+    }, 2000);
+
     console.log("Connection failure");
   };
 
@@ -166,7 +181,7 @@ window.connectWebSocket = function () {
         conversationErrorMessage.style.display = "block";
 
         toggleCreateAccount();
-        
+
         deleteAccountOpen = false;
         toggleDeleteAccount();
 
@@ -290,25 +305,13 @@ window.connectWebSocket = function () {
   };
 };
 
-loadingContainer.querySelector(".loader").addEventListener('animationend', function () {
-  // Change the background color once the animation ends
-  loadingContainer.querySelector(".loader").style.opacity = 0;
-
-  setTimeout(() => {
-    loadingMessage.style.transform = `translateY(
-    -${loadingMessage.getBoundingClientRect().top +
-      loadingMessage.offsetHeight / 2 -
-      window.innerHeight / 2}px)`;
-  }, 500);
-});
-
 window.onload = function () {
   window.connectWebSocket();
 };
 
 function logWarning() {
   console.log(
-    `%cCaution: Do not paste any external code into this area unless you fully understand its functionality. Executing untrusted code may result in unintended consequences, including potential security risks. Always verify the source of the code before running it to ensure the safety of your account and data. Proceed with caution and take responsibility for your actions.`,
+    `%cCaution: Do not paste any external code into this area unless you fully understand its functionality. Always verify the source of the code before running it to ensure the safety of your account and data. Proceed with caution and take responsibility for your actions.`,
     "background: red; color: white; padding: 3px; border-radius: 2px;"
   );
 }
