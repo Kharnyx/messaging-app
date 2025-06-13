@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat System</title>
-  <link rel="stylesheet" href="public/style.css" />
+  <link rel="stylesheet" href="../style.css" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
 </head>
 
@@ -59,7 +59,15 @@
     <div class="overlay" id="settings-overlay"></div>
     <div class="settings-panel" id="settings-panel">
       <div class="settings-header" id="settings-header">
+        <button class="btn-round" id="open-settings-categories">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
         <h2 id="category-title">Settings</h2>
+
+        <button class="btn-round" id="open-settings-content">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
       </div>
 
       <div class="overlay" id="sub-popup-overlay"></div>
@@ -85,9 +93,14 @@
           <h3 id="login-signup-header">Log in</h3>
 
           <div class="account-details" id="account-details">
-            <h4 id="account-details-username"><b>Username:</b> USERNAME</h4>
+            <h4 id="account-details-username">
+              <b>Username: </b> USERNAME
+            </h4>
+            <h4 id="account-details-userid">
+              <b>User ID: </b> USER ID
+            </h4>
             <h4 id="account-details-created-date">
-              <b>Created Date:</b> DD/MM/YYYY
+              <b>Created Date: </b> DD/MM/YYYY
             </h4>
           </div>
 
@@ -250,12 +263,12 @@
   <br />
 
   <!-- SCRIPTS -->
-  <script src="public/scripts/tools.js" defer></script>
-  <script src="public/scripts/profanity-filter.js" defer></script>
-  <script src="public/scripts/script.js" defer></script>
-  <script src="public/scripts/message-handler.js" defer></script>
-  <script src="public/scripts/settings.js" defer></script>
-  <script src="public/scripts/emoji-menu.js" defer></script>
+  <script src="../scripts/tools.js" defer></script>
+  <script src="../scripts/profanity-filter.js" defer></script>
+  <script src="../scripts/script.js" defer></script>
+  <script src="../scripts/message-handler.js" defer></script>
+  <script src="../scripts/settings.js" defer></script>
+  <script src="../scripts/emoji-menu.js" defer></script>
 </body>
 
 </html>
