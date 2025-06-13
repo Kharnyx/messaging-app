@@ -41,6 +41,10 @@ const deleteAccount = document.getElementById("delete-account");
 const confDeleteAccount = document.getElementById("confirm-delete-account-btn");
 const deleteAccountInput = document.getElementById("password-delete-account");
 
+const closeSettingsContentBtn = document.getElementById("open-settings-categories"),
+    openSettingsContentBtn = document.getElementById("open-settings-content");
+let settingsContentOpen = false;
+
 const minIdentifierLength = 4;
 const maxIdentifierLength = 6;
 
@@ -60,9 +64,17 @@ settingsButton.addEventListener("click", () => {
     toggleSettings();
 });
 
-window.addEventListener("resize", () => {
-    if (window.innerWidth < window.innerHeight) {
+closeSettingsContentBtn.addEventListener("click", () => {
+    if (isPortraitMode && settingsContentOpen) {
+        settingsContentOpen = false;
+        updateSettingsDisplay();
+    }
+});
 
+openSettingsContentBtn.addEventListener("click", () => {
+    if (isPortraitMode && !settingsContentOpen) {
+        settingsContentOpen = true;
+        updateSettingsDisplay();
     }
 });
 
@@ -139,8 +151,30 @@ function setupSettings() {
     categories.forEach((category, index) => {
         category.addEventListener("click", () => {
             showCategory(index);
+            
+            if (isPortraitMode) {
+                settingsContentOpen = !settingsContentOpen;
+
+                updateSettingsDisplay();
+            }
         });
     });
+}
+
+function updateSettingsDisplay() {
+    if (settingsContentOpen) {
+        settingsCategories.style.display = "none";
+        settingsBody.style.display = "flex";
+
+        openSettingsContentBtn.style.visibility = "hidden";
+        closeSettingsContentBtn.style.visibility = "visible";
+    } else {
+        settingsCategories.style.display = "flex";
+        settingsBody.style.display = "none";
+
+        openSettingsContentBtn.style.visibility = "visible";
+        closeSettingsContentBtn.style.visibility = "hidden";
+    }
 }
 
 usernameIdentifier.addEventListener("input", function (event) {
