@@ -1,4 +1,5 @@
 // public/scripts/script.js
+// Get DOM elements for various parts of the chat UI
 const chatConversations = document.getElementById("chat-conversations");
 const chatArea = document.getElementById("chat-area");
 const chatBody = document.getElementById("chat-body");
@@ -21,75 +22,76 @@ const conversationParent = document.getElementById("conversation-parent");
 
 const conversationShadow = document.getElementById("conversation-shadow");
 
-const openConversationsButton = document.getElementById("open-conversations");
-const closeConversationsButton = document.getElementById("close-conversations");
+const openConversationsButton = document.getElementById("open-conversations"),
+  closeConversationsButton = document.getElementById("close-conversations");
 let conversationsOpen = false;
 
+// Get CSS variables and calculate border width
 const root = document.documentElement;
 const computedStyle = getComputedStyle(root);
-const conversationsWidth = computedStyle
-  .getPropertyValue("--conversations-width")
-  .trim();
+const conversationsWidth = computedStyle.getPropertyValue("--conversations-width").trim();
 const borderWidth =
   parseFloat(computedStyle.getPropertyValue("--border-width")) *
   parseFloat(getComputedStyle(document.documentElement).fontSize);
 
 let previewFileProgressBarFill = [];
-
-// Updates dimensions of elements to corespond with the new screen dimensions
+let isPortraitMode = window.innerWidth < window.innerHeight;
+// Dynamically update layout dimensions based on window size and conversation visibility
 window.updateElementDimensions = function () {
-  if (window.innerWidth < window.innerHeight) {
-    root.style.setProperty(
-      "--conversations-width",
-      chatConversations.style.width
-    );
-
+  isPortraitMode = window.innerWidth < window.innerHeight;
+  if (isPortraitMode) {
+    // If in portrait mode, hide conversations sidebar
+    root.style.setProperty("--conversations-width", chatConversations.style.width);
     chatConversations.classList.add("innactive");
     chatConversations.classList.remove("active");
-    chatConversations.style.width = "0px";
+    chatConversations.style.width = "0";
     chatConversations.style.display = "none";
-    //console.log(chatConversations.offsetWidth)
+
+
+    root.style.setProperty("--settings-categories-width", "0%");
+    settingsCategories.style.display = "none";
   } else {
+    // Show conversation sidebar in landscape mode
     chatConversations.classList.remove("innactive");
     chatConversations.classList.add("active");
-
     root.style.setProperty("--conversations-width", "28.12vw");
-
     chatConversations.style.display = "block";
     chatConversations.style.width = conversationsWidth;
     chatConversations.style.opacity = "1";
+
+
+    root.style.setProperty("--settings-categories-width", "30%");
+    settingsCategories.style.display = "flex";
   }
 
   chatArea.style.display = "block";
 
-  const conversationPadding =
-    parseFloat(window.getComputedStyle(conversationParent).paddingBottom) +
-    parseFloat(window.getComputedStyle(conversationParent).paddingTop);
+  // Adjust height for conversation and chat sections
+  conversationParent.style.height = `${window.innerHeight - conversationHeader.offsetHeight}px`;
+  chatBody.style.height = `${window.innerHeight - chatFooter.offsetHeight - chatHeader.offsetHeight}px`;
 
-  conversationParent.style.height =
-    `${window.innerHeight - conversationHeader.offsetHeight}px`;
-
-  chatBody.style.height =
-    `${window.innerHeight - chatFooter.offsetHeight - chatHeader.offsetHeight}px`;
-
+  // Align shadows with headers
   chatShadow.style.transform = `translateY(${chatHeader.offsetHeight}px)`;
   conversationShadow.style.transform = `translateY(${conversationHeader.offsetHeight}px)`;
 
   let newWidth = `${window.innerWidth - chatConversations.offsetWidth}px`;
-
   messageInput.style.width = `${700 + window.innerWidth - chatConversations.offsetWidth - 800 - 110}px`;
 
-  let conversationChevrons = document.getElementsByClassName(
-    "conversation-chevron"
-  );
+  // Show/hide conversation chevrons based on state
+  let conversationChevrons = document.getElementsByClassName("conversation-chevron");
   for (let chevron of conversationChevrons) {
     chevron.style.display = conversationsOpen ? "block" : "none";
   }
 
+  // Hide open/close buttons by default
   closeConversationsButton.style.visibility = "hidden";
   openConversationsButton.style.visibility = "hidden";
 
-  if (chatConversations.style.width == "0px") {
+  openSettingsContentBtn.style.visibility = "hidden";
+  closeSettingsContentBtn.style.visibility = "hidden";
+
+  if (chatConversations.style.width == "0") {
+    // Handle mobile full-width sidebar toggle
     if (conversationsOpen) {
       chatArea.style.display = "none";
       chatConversations.style.display = "block";
@@ -107,9 +109,27 @@ window.updateElementDimensions = function () {
     }
   } else {
     conversationsOpen = false;
-    //console.log(chatConversations.offsetWidth);
     newWidth = `${window.innerWidth - chatConversations.offsetWidth}px`;
     chatFooter.style.width = newWidth;
+  }
+
+  if (isPortraitMode) {
+    if (settingsContentOpen) {
+      settingsCategories.style.display = "none";
+      settingsBody.style.display = "flex";
+
+      openSettingsContentBtn.style.visibility = "hidden";
+      closeSettingsContentBtn.style.visibility = "visible";
+    } else {
+      settingsCategories.style.display = "flex";
+      settingsBody.style.display = "none";
+
+      openSettingsContentBtn.style.visibility = "visible";
+      closeSettingsContentBtn.style.visibility = "hidden";
+    }
+  } else {
+    settingsBody.style.display = "flex";
+    settingsCategories.style.display = "flex";
   }
 
   chatArea.style.width = newWidth;
@@ -120,13 +140,14 @@ window.updateElementDimensions = function () {
   checkChatFooterAlignment();
 };
 
+// Automatically resize textarea as user types (currently disabled)
 messageInput.addEventListener("input", updateTextareaSize(messageInput));
-
 function updateTextareaSize(element) {
-  //element.style.height = "auto";
-  //element.style.height = `${element.scrollHeight}px`;
+  // element.style.height = "auto";
+  // element.style.height = `${element.scrollHeight}px`;
 }
 
+// Adjusts chat footer content alignment depending on overflow
 function checkChatFooterAlignment() {
   if (chatFooterChat.offsetWidth < chatFooterChat.scrollWidth) {
     chatFooterChat.style.justifyContent = "flex-start";
@@ -135,19 +156,19 @@ function checkChatFooterAlignment() {
   }
 }
 
+// Dynamically positions tooltips to avoid screen overflow
 function positionTooltips() {
   const tooltips = document.querySelectorAll(".tooltip");
-
   for (let tooltip of tooltips) {
-    // Get the height of the parent and the tooltip
-    const parentElement = tooltip.parentElement,
-      parentHeight = parentElement.offsetHeight,
-      parentWidth = parentElement.offsetWidth;
+    const parentElement = tooltip.parentElement;
+    const parentHeight = parentElement.offsetHeight;
+    const parentWidth = parentElement.offsetWidth;
 
-    const tooltipHeight = tooltip.offsetHeight,
-      tooltipWidth = tooltip.offsetWidth,
-      rect = tooltip.getBoundingClientRect();
+    const tooltipHeight = tooltip.offsetHeight;
+    const tooltipWidth = tooltip.offsetWidth;
+    const rect = tooltip.getBoundingClientRect();
 
+    // Reset tooltip styles
     tooltip.style.setProperty("--triangle-rotation", "0");
     tooltip.style.setProperty("--triangle-top", "99%");
     tooltip.style.setProperty("--triangle-bottom", "none");
@@ -155,19 +176,15 @@ function positionTooltips() {
     tooltip.style.setProperty("--triangle-left", "none");
     tooltip.style.setProperty("--triangle-right", "none");
 
-    // Calculate initial transformY position
+    // Calculate vertical position
     let transformY = (-parentHeight - tooltipHeight) / 2 - 12;
     let transformX = 0;
 
     const topPos = rect.top - tooltipHeight / 2;
 
-    // If the top of the tooltip is near the top swap its direction to underneath the element
-    if (
-      topPos < 15 ||
-      parentElement.getBoundingClientRect().top + transformY < 10
-    ) {
-      transformY = Math.abs(transformY); // Push the tooltip downward
-      // Change the attributes of the pseudo element to swap its direction.
+    // Adjust for tooltips near top of screen
+    if (topPos < 15 || parentElement.getBoundingClientRect().top + transformY < 10) {
+      transformY = Math.abs(transformY);
       tooltip.style.setProperty("--triangle-bottom", "99%");
       tooltip.style.setProperty("--triangle-top", "none");
       tooltip.style.setProperty("--triangle-border-top-col", "transparent");
@@ -179,23 +196,22 @@ function positionTooltips() {
       tooltip.style.setProperty("--triangle-border-bottom-col", "transparent");
     }
 
-    // Check if the tooltip overflows the bottom of the screen
+    // Check horizontal overflow
     const viewportHeight = window.innerHeight;
     if (rect.top > viewportHeight - 10) {
-      transformY -= rect.bottom - viewportHeight + 10; // Adjust to prevent overflow
+      transformY -= rect.bottom - viewportHeight + 10;
     }
 
     const viewportWidth = window.innerWidth;
     if (rect.right > viewportWidth - 10) {
       transformX = (-parentWidth - tooltipWidth) / 2 - 12;
       tooltip.style.setProperty("--triangle-left", "99%");
-
     } else if (rect.left < 10) {
       transformX = Math.abs((-parentWidth - tooltipWidth) / 2 - 12);
       tooltip.style.setProperty("--triangle-right", "99%");
-
     }
 
+    // If tooltip is moved horizontally, rotate arrow
     if (transformX) {
       transformY = 0;
       tooltip.style.setProperty("--triangle-rotation", "90deg");
@@ -205,11 +221,11 @@ function positionTooltips() {
       tooltip.style.setProperty("--triangle-translateY", "-50%");
     }
 
-    // Position the tooltip
     tooltip.style.transform = `translate(${transformX}px, ${transformY}px)`;
   }
 }
 
+// Initial tooltip positioning
 positionTooltips();
 
 function updateButtonState() {
