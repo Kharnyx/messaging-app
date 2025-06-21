@@ -90,7 +90,7 @@ window.updateElementDimensions = function () {
   openSettingsContentBtn.style.visibility = "hidden";
   closeSettingsContentBtn.style.visibility = "hidden";
 
-  if (chatConversations.style.width == "0") {
+  if (isPortraitMode) {
     // Handle mobile full-width sidebar toggle
     if (conversationsOpen) {
       chatArea.style.display = "none";
