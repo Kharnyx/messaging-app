@@ -502,3 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
 window.addEventListener("resize", () => {
   window.updateElementDimensions();
 });
+
+window.addEventListener("orientationchange", () => {
+  window.updateElementDimensions();
+});
