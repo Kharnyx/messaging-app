@@ -1,1097 +1,1250 @@
-// public/scripts/message-handler.js
-const userIdtxt = document.getElementById("user-id");
-const addUser = document.getElementById("add-user");
-const createConversationInput = document.getElementById("user-id-input");
-const newMessages = document.getElementById("scroll-bottom-new");
-const scrollBottom = document.getElementById("scroll-bottom");
-const loadingContainer = document.getElementById("loading-container");
-const loadingMessage = document.getElementById("loading-message");
-const chatContainer = document.getElementById("chat-container");
-const conversationErrorMessage = document.getElementById("add-conversation-error");
-
-const currentUser = "";
-
-let devKey = "";
-let token = "";
-
-let messageList = { messages: [] };
-let lastMessages = [];
-let conversations = [];
-let messagesSentToMe = [];
-
-let selectedConversation = "";
-let maxPayload = 1 * 1024 * 1024;
-
-let now = new Date();
-
-let currentDate = "";
-let currentDay = "";
-let currentMonth = "";
-let currentYear = "";
-let fullDate = "";
-
-let messagePosting = false;
-
-const apiSubDomain = "messaging-app-bci4";
-const page = `${apiSubDomain}.onrender.com`;
-const apiBaseUrl = `https://${page}`;
-
-//let socket = "";
-const maxReconnetAttempts = 5;
-let userIdsList = "";
-let userId = "";
-let usersOnline = [];
-
-const wsUrl = `wss://${page}`;
-const socket = new WebSocket(wsUrl);
-
-window.connectWebSocket = function () {
-  let reconnectAttempts = 0;
-  const maxReconnectAttempts = 5;
-
-  socket.onclose = function () {
-    if (reconnectAttempts < maxReconnectAttempts) {
-      reconnectAttempts++;
-      //console.log("WebSocket connection closed, attempting to reconnect...");
-      setTimeout(window.connectWebSocket, 3000);
-    } else {
-      //console.log("Reconnection attempts exhausted");
-      location.reload();
-    }
-  };
-
-  socket.onopen = function () {
-    reconnectAttempts = 0;
-    chatContainer.style.display = "block";
-    window.updateElementDimensions();
-    window.resizeSettings();
-    loadingMessage.textContent = "Connected!";
-    loadingContainer.style.opacity = "0";
-
-    setTimeout(() => {
-      //console.log("WebSocket connection established");
-      loadingContainer.style.display = "none";
-    }, 500);
-  };
-
-  socket.onerror = function (error) {
-    console.error("WebSocket error:", error);
-
-    // When the app cannot connect to the server, display a different message and add a disconnected class
-    loadingMessage.innerHTML = "Connection Failure";
-    loadingContainer.classList.add("disconnected");
-
-    // Wait 2 seconds and then remove the loader
-
-    setTimeout(() => {
-      // Make the loader dissapear
-      loadingContainer.querySelector(".loader").style.opacity = 0;
-
-      setTimeout(() => {
-        // Wait 0.5 seconds and move the loading message to the center of the page
-        loadingMessage.style.transform = "translate(-50%, -50%)";
-      }, 500);
-    }, 1500);
-
-    console.log("Connection failure");
-  };
-
-  socket.onmessage = function (event) {
-    const data = JSON.parse(event.data);
-    const type = data.type;
-
-    if (type === "error") {
-      console.log(data);
-    } else if (type === "ban") {
-      alert("You have been logged out");
-      window.close();
-      window.location.href = "about:blank";
-    } else if (type === "data") {
-      maxPayload = data.maxPayload;
-    } else if (type === "token") {
-      token = data.token;
-    } else if (type === "signup") {
-      //console.log(data);
-    } else if (type === "login") {
-      //console.log(data);
-
-      if (data.status === "success") {
-        let userDataUsername = accountDetails.querySelector("#account-details-username");
-        let userDataUserId = accountDetails.querySelector("#account-details-userid");
-        let userDataCreatedDate = accountDetails.querySelector("#account-details-created-date");
-
-        let createdDate = new Date(data.account.createdDate);
-        let date =
-          `${String(createdDate.getDate()).padStart(2, "0")}/${createdDate.getUTCMonth() + 1
-          }/${createdDate.getFullYear()}`;
-
-        accountUsername = data.account.username;
-        userId = data.account.userId;
-        settingsUsername.textContent = `${userId}`;
-        userIdtxt.textContent = `Your ID: ${userId}`;
-
-        let userIdExtract = userId.split('#');
-
-        inputUsername.value = userIdExtract[0];
-        usernameIdentifier.value = userIdExtract[1];
-
-        userDataCreatedDate.lastChild.textContent = date;
-        userDataUserId.lastChild.textContent = userId;
-        userDataUsername.lastChild.textContent = data.account.username;
-
-        if (accountUsername) {
-          loggedInUsername.textContent = `Account: ${accountUsername}`;
-          deleteAccount.style.display = "flex";
-        } else {
-          loggedInUsername.textContent = "ACCOUNT (Not logged in)";
-          deleteAccount.style.display = "none";
-        }
-
-        conversationErrorMessage.style.display = "none";
-
-        toggleCreateAccount();
-
-        updateConversations();
-        switchConversations();
-      }
-    } else if (type === "logout") {
-      accountUsername = null;
-      userId = data.userId;
-      settingsUsername.textContent = `${userId}`;
-      userIdtxt.textContent = `Your ID: ${userId}`;
-
-      loggedInUsername.textContent = "ACCOUNT (Not logged in)";
-      deleteAccount.style.display = "none";
-
-      conversationErrorMessage.style.display = "block";
-
-      toggleCreateAccount();
-
-      updateConversations();
-      switchConversations();
-    } else if (type === "deleteAccount") {
-      //console.log(data);
-      if (data.status === "success") {
-        accountUsername = null;
-        loggedInUsername.textContent = "ACCOUNT (Not logged in)";
-
-        conversationErrorMessage.style.display = "block";
-
-        toggleCreateAccount();
-
-        deleteAccountOpen = false;
-        toggleDeleteAccount();
-
-        updateConversations();
-        switchConversations();
-      }
-    } else if (type === "userIdResult") {
-      if (!data.result) {
-        userId = newUserId;
-        settingsUsername.textContent = `${userId}`;
-        userIdtxt.textContent = `Your ID: ${userId}`;
-
-        //changeUsernamePanel.classList.remove("open");
-        changeUserIdOpen = false;
-        toggleChangeUserId();
-
-        for (let i = conversationParent.children.length - 1; i >= 0; i--) {
-          const child = conversationParent.children[i];
-          if (child.className.includes("conversation")) {
-            conversationParent.removeChild(child);
-          }
-        }
-      }
-    } else if (type === "createConversation") {
-      //console.log(data);
-      if (data.status === "success") {
-        createConversationWithUser(data.otherUser, true);
-      }
-    } else if (type === "updateClients") {
-      for (let i = conversationParent.children.length - 1; i >= 0; i--) {
-        const child = conversationParent.children[i];
-        if (child.className.includes("conversation")) {
-          conversationParent.removeChild(child);
-        }
-      }
-
-      //console.log("conversations OLD", conversations);
-
-      //conversations = conversations.map(item => item.users === data.oldUserId ? data.newUserId : item);
-
-      conversations.forEach((conversation, ci) => {
-        conversation.users.forEach((user, ui) => {
-          if (user === data.oldUserId) {
-            conversations[ci].users[ui] = data.newUserId;
-          }
-        });
-      });
-
-      //console.log("conversations NEW", conversations);
-
-      conversations = [];
-
-      updateConversations();
-      switchConversations();
-    } else if (type === "userIdList") {
-      userIdsList = data.userIds;
-      //console.log("List of User ID's recieved from server:", userIdsList);
-    } else if (type === "userId") {
-      // Store the user ID on the client side
-      userId = data.userId;
-      userIdtxt.textContent = `Your ID: ${userId}`;
-      settingsUsername.textContent = `${userId}`;
-
-      const userIdArray = userId.split("#");
-      usernameIdentifier.value = userIdArray[1];
-      inputUsername.value = userIdArray[0];
-      //console.log("User ID recieved from server:", data);
-    } else if (type === "sendTo") {
-      //console.log("sending message to", data);
-    } else if (type === "message" || type === "firstMessage") {
-      //console.log("Messages recieved from server:", data);
-      messageList = data;
-      updateConversations();
-      switchConversations();
-
-      if (type === "firstMessage") {
-        chatBody.scrollTop = chatBody.scrollHeight;
-      }
-    } else if (type === "delete") {
-      if (data.status === "success") {
-        clearChatBody();
-        lastMessages = [];
-        conversations = [];
-        messagesSentToMe = [];
-        messageList = [];
-
-        for (let i = conversationParent.children.length - 1; i >= 0; i--) {
-          if (
-            conversationParent.children[i].className.includes("conversation")
-          ) {
-            conversationParent.removeChild(conversationParent.children[i]);
-          }
-        }
-
-        updateConversations();
-        switchConversations();
-
-        //console.log("SUCCESS: All messages have been successfully deleted. The system is now reset.");
-      } else {
-        //console.error("Failed to delete messages. Reason: Invalid dev key. Please ensure you are using the correct developer key and try again.");
-      }
-    } else if (type === "usersOnline") {
-      usersOnline = data.users;
-
-      const senderDivs = chatBody.querySelectorAll(".sender");
-
-      for (let element of senderDivs) {
-        let isOnline = usersOnline.indexOf(element.firstChild.textContent.trim()) >= 0;
-        let status = element.querySelector(".sender-status");
-
-        status.classList.remove("online", "offline");
-        status.classList.add(isOnline ? "online" : "offline");
-
-        element.lastChild.textContent = isOnline ? " online" : " offline";
-      }
-
-      //console.log(usersOnline)
-    } else {
-      console.log("Data recieved from server", data);
-    }
-  };
-};
-
-window.onload = function () {
-  window.connectWebSocket();
-};
-
-function logWarning() {
-  console.log(
-    `%cCaution: Do not paste any external code into this area unless you fully understand its functionality. Always verify the source of the code before running it to ensure the safety of your account and data. Proceed with caution and take responsibility for your actions.`,
-    "background: red; color: white; padding: 3px; border-radius: 2px;"
-  );
+/* public/style.css */
+:root {
+    --unavailable: #cedccd;
+    --theme: #80c27a;
+    --theme-hover: #73a770;
+    --border-color: #e0e0e0;
+    --background-color: #ffffff;
+    --border-width: 0.125em;
+    --button-hover-duration: 0.3s;
+    --conversations-width: 28.12vw;
+    --chat-header-height: 3.25em;
+    --chat-footer-height: 5em;
+    --file-info-height: 3em;
+    --default-border-radius: 0.35em;
+    --settings-categories-width: 30%;
 }
 
-setInterval(logWarning, 10000);
-
-logWarning();
-
-function updateCurrentDates() {
-  now = new Date();
-
-  currentDate = now.getDate();
-  currentDay = now.toLocaleString("en-us", { weekday: "short" });
-  currentMonth = now.toLocaleString("en-us", { month: "short" });
-  currentYear = now.getFullYear();
-  fullDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(
-    currentDate
-  ).padStart(2, "0")}`;
+body {
+    font-family: Arial, sans-serif;
+    background-color: var(--background-color);
+    color: #4d4d4d;
+    text-align: center;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
 }
 
-function isSameTime(timestamp1, timestamp2) {
-  const date1 = new Date(timestamp1);
-  const date2 = new Date(timestamp2);
-
-  const maxMinuteDiff = 30 * 60 * 1000; // Minutes in miliseconds
-  const difference = Math.abs(date1.getTime() - date2.getTime());
-
-  return (
-    (date1.getUTCHours() === date2.getUTCHours() &&
-      date1.getUTCMinutes() === date2.getUTCMinutes() &&
-      date1.getUTCSeconds() === date2.getUTCSeconds()) ||
-    difference < maxMinuteDiff
-  );
+* {
+    scrollbar-color: var(--theme) transparent;
+    box-sizing: border-box;
 }
 
-sendMessageBtn.addEventListener("click", () => {
-  if (messagePosting) return;
-  window.sendMessage();
-});
-
-messageInput.addEventListener("keypress", (e) => {
-  if (messagePosting) return;
-  if (e.key === "Enter" && document.activeElement === messageInput) {
-    e.preventDefault();
-    window.sendMessage();
-  }
-});
-
-addUser.addEventListener("click", () => {
-  if (accountUsername) {
-    createConversationWithUser(createConversationInput.value, false);
-  }
-});
-
-newMessages.addEventListener("click", scrollToBottom);
-scrollBottom.addEventListener("click", scrollToBottom);
-
-let smoothScrollingActive = false;
-
-function scrollToBottom() {
-  newMessages.style.display = "none";
-  scrollBottom.style.display = "none";
-
-  const targetScrollTop = chatBody.scrollHeight - chatBody.clientHeight;
-  smoothScrollingActive = true;
-
-  chatBody.scrollTo({
-    top: targetScrollTop,
-    behavior: "smooth",
-  });
-
-  const scrollEndHandler = () => {
-    if (Math.abs(chatBody.scrollTop - targetScrollTop) < 1) {
-      smoothScrollingActive = false;
-      chatBody.removeEventListener("scroll", scrollEndHandler);
-    }
-  };
-
-  chatBody.addEventListener('scroll', scrollEndHandler);
+image {
+    height: 100%;
 }
 
-let chatBodyScrollDiff = 0;
-let newMessageSentElement = null;
-const bottomThreshold = 80;
-const bottomPadding = window.getComputedStyle(chatBody).paddingBottom;
-chatBody.addEventListener("scroll", () => {
-  //console.log(`ScrollHeight: ${chatBody.scrollHeight - chatBody.clientHeight} || ScrollTop: ${chatBody.scrollTop}`)
-  chatShadow.style.display = chatBody.scrollTop < 1 ? "none" : "block";
-
-  const distanceFromBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop;
-  //console.log(requirementToRead)
-  if (distanceFromBottom <= bottomThreshold) {
-    newMessages.style.display = "none";
-    scrollBottom.style.display = "none";
-  } else if (!smoothScrollingActive && newMessages.style.display === "none") {
-    scrollBottom.style.display = "flex";
-  }
-});
-
-function clearChatBody() {
-  const children = Array.from(chatBody.children);
-
-  children.forEach((child) => {
-    if (child.id !== "chat-shadow") {
-      chatBody.removeChild(child);
-    }
-  });
+button {
+    z-index: 999;
+    background-color: var(--theme);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 0.3125em;
+    /*transition: background-color var(--button-hover-duration) ease-in-out;*/
 }
 
-let previousScrollTop = 0;
-
-let isAtBottom = false;
-
-function loadMessages(response) {
-  let messages =
-    response.messages || response.currentMessages || response.messagesToSend; // Extract messages from the response
-
-  messagesSentToMe = messages;
-
-  if (messagesSentToMe.length < 1) return;
-
-  // Check for messages that were not supposed to be send to client (as a precaution)
-  messages.forEach((msg, index) => {
-    if (
-      !(
-        (msg.sendTo && msg.sendTo.includes(userId)) ||
-        msg.senderId === userId ||
-        msg.sendTo === ""
-      )
-    ) {
-      //console.log("removing item", index);
-      messages.splice(index, 1);
-    }
-  });
-
-  //console.log("messages", messages);
-
-  clearChatBody(); // Clear existing messages before rendering new ones
-
-  let previousProduct = null;
-  let index = 0;
-
-  updateCurrentDates();
-  if (messages) {
-    messages.forEach((msg) => {
-      const msgDates = new Date(msg.timestamp);
-      const msgTime = msg.timestamp
-        ? window.formatUTCTo12Hour(msg.timestamp)
-        : "Unknown Time";
-
-      const formattedTimestamp = msgTime;
-      const isFromMe = userId === msg.senderId;
-
-      const messageContainer = document.createElement("div");
-      messageContainer.className = `message-container ${isFromMe ? "from-me" : "from-others"
-        }`;
-
-      const fileParent = document.createElement("div");
-      fileParent.id = "files";
-
-      if (msg.files && msg.fileTypes) {
-        msg.files.forEach((fileEndpoint, index) => {
-          let separator = fileEndpoint.startsWith("/") ? "" : "/";
-          const fileUrl = `${apiBaseUrl}${separator}${fileEndpoint}`;
-          let fileType = msg.fileTypes[index].fileType;
-          let fileSize = msg.fileTypes[index].fileSize;
-          let fileName = msg.fileTypes[index].fileName;
-
-          const vidImgParent = document.createElement("div");
-
-          if (fileType.startsWith("video/")) {
-            const video = document.createElement("video");
-            video.src = fileUrl;
-            video.controls = true;
-
-            vidImgParent.appendChild(video);
-            fileParent.appendChild(vidImgParent);
-          } else if (fileType.startsWith("image/")) {
-            const image = document.createElement("img");
-            image.src = fileUrl;
-
-            vidImgParent.appendChild(image);
-            fileParent.appendChild(vidImgParent);
-          } else {
-            const file = document.createElement("a");
-            file.id = "open-file";
-            file.href = fileUrl;
-            file.download = fileName;
-            const sizeTxt = document.createElement("div");
-            sizeTxt.className = "file-size";
-            sizeTxt.textContent = window.formatFileSize(fileSize);
-            const nameTxt = document.createElement("div");
-            nameTxt.className = "file-name";
-            nameTxt.textContent = fileName;
-
-            // file.addEventListener("click", function () {
-            //   window.open(fileUrl, "blank");
-            // });
-
-            file.appendChild(nameTxt);
-            file.appendChild(sizeTxt);
-            fileParent.appendChild(file);
-          }
-
-          const br = document.createElement("br");
-          br.style.height = "0";
-
-          if (index != msg.files.length - 1) {
-            //fileParent.appendChild(br);
-          }
-        });
-      }
-
-      const senderDiv = document.createElement("div");
-      senderDiv.className = "sender";
-      senderDiv.textContent = `${msg.senderId} `;
-
-
-      if (msg.senderId !== userId) {
-        let isOnline = usersOnline.indexOf(msg.senderId) >= 0;
-        const dot = document.createElement("i");
-        dot.className = "fa-regular fa-circle-dot sender-status";
-        dot.classList.add(isOnline ? "online" : "offline");
-        const status = document.createElement("span");
-        status.textContent = isOnline ? " online" : " offline";
-
-        senderDiv.appendChild(dot);
-        senderDiv.appendChild(status);
-      }
-
-      const timestampDiv = document.createElement("div");
-      timestampDiv.className = "timestamp";
-      timestampDiv.textContent = formattedTimestamp;
-
-      const messageDiv = document.createElement("div");
-      messageDiv.className = "message";
-
-      const messageText = document.createElement("span");
-      messageText.textContent = msg.text;
-
-      messageDiv.appendChild(messageText);
-
-      const msgDate = msgDates.getUTCDate();
-      const msgDay = msgDates.toLocaleString("en-us", {
-        weekday: "short",
-        timeZone: "UTC",
-      });
-      const msgMonth = msgDates.toLocaleString("en-us", {
-        month: "short",
-        timeZone: "UTC",
-      });
-      const msgYear = msgDates.getFullYear();
-      const msgFullDate = `${msgYear}-${String(
-        msgDates.getUTCMonth() + 1
-      ).padStart(2, "0")}-${String(msgDates.getUTCDate()).padStart(2, "0")}`;
-
-      messageDiv.addEventListener("click", function () {
-        if (timestamp.className.includes("new-day")) return;
-        //console.log(chatBody.scrollTop)
-
-        const scrollPosition = chatBody.scrollTop;
-        const maxScroll = chatBody.scrollHeight - chatBody.clientHeight;
-
-        const scrollChange = 19.26;
-
-        if (timestamp.style.display === "none") {
-          timestamp.style.display = "block";
-          chatBody.scrollTop = scrollPosition + scrollChange;
-        } else {
-          if (scrollPosition < maxScroll) {
-            chatBody.scrollTop = scrollPosition - scrollChange;
-          }
-          timestamp.style.display = "none";
-        }
-      });
-
-      let previousMsgFullDate = null;
-      if (previousProduct) {
-        const previousDate = new Date(previousProduct.timestamp);
-        previousMsgFullDate = `${previousDate.getFullYear()}-${String(
-          previousDate.getUTCMonth() + 1
-        ).padStart(2, "0")}-${String(previousDate.getUTCDate()).padStart(
-          2,
-          "0"
-        )}`;
-      }
-
-      if (
-        !previousProduct ||
-        (previousProduct.senderId !== msg.senderId && msg.senderId !== userId)
-      ) {
-        messageContainer.appendChild(senderDiv);
-      }
-
-      messageContainer.appendChild(fileParent);
-      if (msg.text.trim()) {
-        messageContainer.appendChild(messageDiv);
-      }
-      messageContainer.appendChild(timestampDiv);
-
-      const br = document.createElement("br");
-
-      chatBody.insertBefore(messageContainer, chatShadow);
-
-      if (
-        previousProduct !== null &&
-        previousProduct.senderId !== msg.senderId
-      ) {
-        chatBody.insertBefore(br, messageContainer);
-      }
-
-      const container =
-        chatBody.getElementsByClassName("message-container")[index];
-      const firstChild = container.firstChild;
-      const timestamp = container.getElementsByClassName("timestamp")[0];
-
-      if (
-        !previousProduct ||
-        (previousMsgFullDate !== msgFullDate &&
-          !isSameTime(previousProduct.timestamp, msg.timestamp))
-      ) {
-        timestampDiv.classList.add("new-day");
-        timestampDiv.textContent =
-          fullDate !== msgFullDate
-            ? `${msgDay}, ${msgDate} ${msgMonth} at ${msgTime}`
-            : `Today ${msgTime}`;
-
-        container.insertBefore(timestamp, firstChild);
-      }
-
-      if (
-        previousProduct !== null &&
-        isSameTime(previousProduct.timestamp, msg.timestamp)
-      ) {
-        timestamp.style.display = "none";
-      }
-
-      previousProduct = msg;
-      index++;
-
-      newMessageSentElement = messageContainer;
-    });
-  }
-
-  chatBody.scrollTop = previousScrollTop;
-
-  // Scroll to bottom if:
-  // 1. The last message is from the current user (you)
-  // 2. The user was already at or near the bottom before new messages loaded
-  if (isAtBottom) {
-    //console.log(isAtBottom);
-    chatBody.scrollTop = chatBody.scrollHeight - chatBody.clientHeight;
-  } else if ((messages.length > 0 && messages[messages.length - 1].senderId === userId)) {
-    scrollToBottom();
-  } else {
-    // If not scrolling to bottom, show the "New Messages" button
-    if (chatBody.scrollHeight > chatBody.clientHeight && !isAtBottom) {
-      newMessages.style.display = "flex";
-      scrollBottom.style.display = "none";
-    }
-  }
-
-  lastMessages = [...messages];
+button:hover {
+    background-color: var(--theme-hover);
+    cursor: pointer;
 }
 
-function debounce(func, wait) {
-  let timeout;
-  return function (...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), wait);
-  };
+.btn-round {
+    height: 2em;
+    width: 2em;
+    margin: 0.3em;
+    border-radius: 50%;
+    font-size: 1em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.3125em;
 }
 
-window.sendMessage = debounce(() => {
-  const messageText = messageInput.value;
-  if (!messageText.trim() && fileInput.value === "") {
-    console.error("Message cannot be empty");
-    return;
-  }
-
-  let files = Array.from(fileInput.files);
-  let validFiles = files.filter(file => file.name.trim() !== "");
-
-  // console.log(files);
-
-  let cumullativeFileSize = 0;
-
-  for (let file of validFiles) {
-    cumullativeFileSize += file.size;
-  }
-
-  if (cumullativeFileSize > maxPayload) {
-    console.error("File size exceeds the maximum limit");
-    return;
-  }
-
-  updateCurrentDates();
-
-  let cleanedMessage = window.ProfanityFilter.clean(messageText);
-
-  if (!messageText.trim()) cleanedMessage = "";
-
-  const formData = new FormData();
-
-  formData.append("senderId", userId);
-  formData.append("senderName", currentUser);
-  formData.append("text", cleanedMessage);
-  formData.append("timestamp", now);
-  formData.append("sendTo", selectedConversation);
-
-  const messageData = {
-    senderId: userId,
-    token: token,
-    senderName: currentUser,
-    text: cleanedMessage,
-    timestamp: now,
-    sendTo: selectedConversation,
-  };
-
-  if (accountUsername) messageData.senderUsername = accountUsername;
-
-  if (validFiles.length > 0) {
-    /*
-    socket.send(JSON.stringify(messageData));
-
-    let filesRemaining = validFiles.length;
-
-    validFiles.forEach((file, index) => {
-      const container = attachedFiles.children[index];
-      const progressFill = container.querySelector(".upload-progress-fill");
-
-      uploadFileInChunks(file, socket, progressFill, messageData, () => {
-        console.log(`${file.name} uploaded`);
-
-        filesRemaining--;
-        if (filesRemaining === 0) {
-          messageInput.value = "";
-          fileInput.value = "";
-          window.updateAttachedFiles();
-        }
-      });
-    });
-    */
-
-
-    // Read files as binary and send the binary data separately
-    const fileObjects = Array.from(validFiles).map((file) => {
-      return new Promise((resolve, reject) => {
-        let reader = new FileReader();
-        reader.onloadend = () => {
-          const fileData = reader.result; // This is an ArrayBuffer
-          const base64FileData = window.arrayBufferToBase64(fileData);
-          //console.log("file data", file)
-          const fileInfo = Array.from(file);
-          resolve({
-            filename: file.name,
-            fileData: base64FileData,
-            fileSize: file.size,
-            fileType: file.type,
-          });
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-    });
-
-    // Once files are read, combine them with the message data
-    Promise.all(fileObjects)
-      .then((fileArray) => {
-        const fullMessageData = {
-          ...messageData,
-          files: fileArray,
-        };
-
-        //console.log("Sending message with files:", fullMessageData);
-        socket.send(JSON.stringify(fullMessageData)); // Send JSON metadata with binary data
-
-        messageInput.value = "";
-        fileInput.value = "";
-        window.updateAttachedFiles();
-      })
-      .catch((error) => {
-        //console.error("Error reading files:", error);
-      });
-
-
-    /*
-    validFiles.forEach((file) => {
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        const arrayBuffer = reader.result;
-
-        // First, send the metadata (as JSON)
-        socket.send(JSON.stringify({
-          type: 'file-meta',
-          filename: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          senderId: userId,
-          sendTo: selectedConversation,
-          text: cleanedMessage,
-          timestamp: now
-        }));
-
-        // Then send the binary data
-        socket.send(arrayBuffer);
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
-
-    // Clear form here or after confirming upload success
-    messageInput.value = "";
-    fileInput.value = "";
-    window.updateAttachedFiles();
-    */
-
-  } else {
-    // Send only text message
-    //console.log("sendingMessage", messageData);
-    socket.send(JSON.stringify(messageData));
-    messageInput.value = "";
-    fileInput.value = "";
-    window.updateAttachedFiles();
-  }
-}, 150);
-
-function uploadFileInChunks(file, socket, progressFill, messageData, onAllFilesSent) {
-  const CHUNK_SIZE = 64 * 1024; // 64KB
-  let offset = 0;
-  const fileId = crypto.randomUUID();
-
-  function sendChunk() {
-    const chunk = file.slice(offset, offset + CHUNK_SIZE);
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const base64Chunk = window.arrayBufferToBase64(reader.result);
-
-      socket.send(JSON.stringify({
-        ...messageData,
-        type: "file-chunk",
-        fileId,
-        filename: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        chunk: base64Chunk,
-        offset,
-        isLastChunk: offset + CHUNK_SIZE >= file.size
-      }));
-
-      offset += CHUNK_SIZE;
-
-      const percent = Math.min((offset / file.size) * 100, 100);
-      progressFill.style.width = `${percent}%`;
-
-      if (offset < file.size) {
-        setTimeout(sendChunk, 0);
-      } else {
-        onAllFilesSent();
-      }
-    };
-
-    reader.onerror = () => {
-      console.error("Error reading file chunk");
-    }
-
-    reader.readAsArrayBuffer(chunk);
-  }
-
-  sendChunk();
+.btn-rect {
+    height: 2em;
+    margin-right: 0.625em;
+    border-radius: 50em;
+    font-size: 1em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.25em;
 }
 
-function createConversationWithUser(user, fromMessage) {
-  let userInput = createConversationInput.value;
-  //console.log(fromMessage);
-  if (
-    (!(userIdsList.includes(user) || fromMessage) ||
-      user === userId ||
-      !user) &&
-    !(!user && fromMessage)
-  ) {
-    //console.log(`Failed to add user: ${user}`);
-    return;
-  }
-
-  for (let i = 0; i < conversations.length; i++) {
-    const usersInConversation = conversations[i]["users"];
-    const usersSet = [user, userId].sort();
-
-    if (usersInConversation.sort().join() === usersSet.join()) {
-      //console.log(`Conversation with ${user} already exists.`);
-      return;
-    }
-  }
-
-  let newItem = Object.keys(conversations).length;
-  conversations[newItem] = { users: [] };
-
-  const conversation = document.createElement("div");
-  conversation.className = "conversation";
-  if (!user) conversation.id = "global";
-
-  const conversationTitle = document.createElement("h2");
-  conversationTitle.textContent = user || "Global Chat";
-
-  const conversationChevron = document.createElement("i");
-  conversationChevron.className =
-    "fa-solid fa-chevron-right conversation-chevron";
-
-  if (fromMessage) {
-    if (conversation.id !== "global")
-      conversations[newItem]["users"] = [user, userId].sort();
-    else conversations[newItem]["users"] = [""];
-  } else {
-    socket.send(
-      JSON.stringify({
-        type: "createConversation",
-        senderId: userId,
-        otherUser: createConversationInput.value,
-        token: token,
-        username: accountUsername,
-      })
-    );
-
-    //console.log(conversations);
-
-    return;
-  }
-
-  //console.log("adding convo length: ", conversations[newItem]["users"].length);
-
-  if (!conversations[newItem]["users"].length) {
-    conversations.splice(newItem, 1);
-    return;
-  }
-
-  conversation.addEventListener("click", function () {
-    if (
-      selectedConversation === conversations[newItem]["users"] ||
-      (conversations[newItem]["users"][0] === selectedConversation &&
-        selectedConversation === "")
-    ) {
-      if (conversationsOpen) {
-        conversationsOpen = false;
-        window.updateElementDimensions();
-      }
-
-      return;
-    }
-
-    const conversationEl = document.querySelectorAll(".conversation-selected");
-    conversationEl.forEach((el) => (el.className = "conversation"));
-
-    conversation.className = "conversation-selected";
-
-    selectedConversation = conversations[newItem]["users"];
-
-    if (!selectedConversation[0]) {
-      selectedConversation = "";
-    }
-
-    switchConversations();
-
-    if (conversationsOpen) {
-      conversationOpen = false;
-      window.updateElementDimensions();
-    }
-    //console.log(`Conversation switched to the user/s: ${selectedConversation}`);
-  });
-
-  conversation.appendChild(conversationTitle);
-  conversation.appendChild(conversationChevron);
-  conversationParent.appendChild(conversation);
+input,
+textarea {
+    margin: 0.3em;
+    width: 18.75em;
+    font-size: 1em;
+    padding: 0.625em 0.9375em;
+    border: none;
+    background-color: #f1f1f1;
+    color: #000000;
+    border-radius: 6.25em;
+    display: flex;
+    outline: none;
+    align-items: center;
 }
 
-function updateConversations() {
-  let messages =
-    messageList.messages ||
-    messageList.currentMessages ||
-    messageList.messagesToSend;
-
-  if (!document.getElementById("global")) {
-    createConversationWithUser("", true);
-  }
-
-  const conversationEl = document.querySelectorAll(".conversation-selected");
-  if (!conversationEl.length) {
-    document.getElementById("global").className = "conversation-selected";
-  }
-
-  if (messages) {
-    messages.forEach((msg) => {
-      if (
-        msg.sendTo &&
-        msg.sendTo.includes(userId) &&
-        msg.senderId !== userId
-      ) {
-        createConversationWithUser(msg.senderId, true);
-      } else if (msg.sendTo && msg.senderId === userId) {
-        let newSendTo = [...msg.sendTo];
-        newSendTo = newSendTo.filter((item) => item !== userId);
-
-        createConversationWithUser(newSendTo, true);
-      }
-    });
-  }
-
-  let conversationChevrons = document.getElementsByClassName(
-    "conversation-chevron"
-  );
-  for (let chevron of conversationChevrons) {
-    chevron.style.display = conversationsOpen ? "block" : "none";
-  }
-
-  //console.log("conversations", conversations);
-
-  /*
-  let newConversationsList = [];
-
-  for (let i = 0; i < conversations.length; i++)  {
-    if (conversations[i]["users"].length) {
-      newConversationsList.push(conversations[i]);
-    }
-  }
-  conversations = [...newConversationsList];
-  */
+input {
+    height: 3.125em;
 }
 
-function switchConversations() {
-  let messagesToLoad = {
-    messages: [],
-  };
-
-  let messages =
-    messageList.messages ||
-    messageList.currentMessages ||
-    messageList.messagesToSend;
-
-  //console.log("messages", messages);
-
-  previousScrollTop = chatBody.scrollTop;
-  //console.log("currentscroll: " + previousScrollTop)
-  isAtBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop <= bottomThreshold;
-
-  clearChatBody();
-
-  if (messages) {
-    if (!selectedConversation[0]) {
-      messages.forEach((msg) => {
-        if (!msg.sendTo) {
-          messagesToLoad.messages.push(msg);
-        }
-      });
-    } else {
-      messages.forEach((msg) => {
-        let sentTo = msg.sendTo;
-        //console.log(sentTo.includes(userId) && selectedConversation.includes(msg.senderId));
-        //console.log(`${sentTo} includes? ${selectedConversation} && ${msg.senderId} === ${userId}`);
-
-        let addressedTo = [...sentTo];
-        if (!addressedTo.includes(msg.senderId)) addressedTo.push(msg.senderId);
-
-        //console.log("adressed", addressedTo);
-        //console.log("convo", selectedConversation);
-
-        if (addressedTo.sort().join() === selectedConversation.sort().join()) {
-          //console.log("adding message to priv chat", msg);
-          messagesToLoad.messages.push(msg);
-        }
-      });
-    }
-  }
-
-  //console.log("PM convo", messagesToLoad);
-
-  loadMessages(messagesToLoad);
-
-  //chatBody.scrollTop = chatBody.scrollHeight;
+textarea {
+    border-radius: 50px;
+    overflow: hidden;
+    height: 10em;
+    resize: none;
 }
 
-window.deleteMessages = function (key) {
-  //console.log("deleting messages...")
-  socket.send(JSON.stringify({ type: "delete", devKey: key, token: token }));
-};
+input:focus,
+textarea:focus {
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
+input::placeholder,
+textarea::placeholder {
+    font-style: italic;
+}
+
+input[type="text"]:focus {
+    outline: none;
+}
+
+h1 {
+    color: var(--theme);
+}
+
+h2 {
+    margin: 5px;
+}
+
+h3 {
+    margin: 5px;
+}
+
+h4 {
+    font-weight: normal;
+    margin: 0;
+}
+
+a {
+    color: var(--theme);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.fake-link {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.fake-link:hover {
+    color: #0056b3;
+    text-decoration-color: #0056b3;
+}
+
+.loading-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 99999;
+    background-color: #ffffff;
+    transition: opacity 0.5s linear;
+}
+
+.loader {
+    width: 10em;
+    height: 10em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--theme);
+    border-radius: 50%;
+    background: conic-gradient(var(--theme) 0deg 90deg,
+            var(--theme-hover) 90deg 360deg);
+    transition: opacity 0.3s ease;
+    animation: loader-rotate 2s linear infinite;
+}
+
+.loader img {
+    position: absolute;
+    width: 85%;
+    height: 85%;
+    border-radius: 50%;
+    animation: loader-counter-rotate 2s linear infinite;
+}
+
+.loading-container.disconnected .loader {
+    background: conic-gradient(#a77070 0deg 90deg,
+            #c27a7a 90deg 360deg);
+}
+
+.loading-container.disconnected #loading-message {
+    transition: transform 0.5s cubic-bezier(0.19, 0.73, 0.26, 1);
+    color: #c27a7a;
+}
+
+#loading-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% + 3em));
+    transition: color 0.3s ease
+}
+
+.loader::after {
+    content: "";
+    width: 75%;
+    height: 75%;
+    border-radius: 50%;
+    background-color: var(--theme);
+    transition: background-color 0.3s ease
+}
+
+.loading-container.disconnected .loader::after {
+    background-color: #c27a7a;;
+}
+
+.tooltip {
+    position: absolute;
+    box-sizing: content-box;
+    font-size: 0.8rem;
+    width: fit-content;
+    min-width: 4.5rem;
+    max-width: 10rem;
+    flex-wrap: nowrap;
+    pointer-events: none;
+    height: auto;
+    font-weight: 600;
+    background-color: var(--theme);
+    opacity: 0;
+    visibility: hidden;
+    color: #000000;
+    text-align: center;
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.5rem;
+    z-index: 999999;
+    display: flex;
+    justify-content: center;
+    transition: opacity 0s ease;
+    white-space: normal;
+    --triangle-top: 99%;
+    --triangle-bottom: none;
+    --triangle-left: none;
+    --triangle-right: none;
+    --triangle-border-top-col: var(--theme);
+    --triangle-border-bottom-col: transparent;
+    --triangle-translateY: 0;
+    --triangle-rotation: 0deg;
+}
+
+.tooltip::after {
+    content: "";
+    position: absolute;
+    top: var(--triangle-top);
+    bottom: var(--triangle-bottom);
+    left: var(--triangle-left);
+    right: var(--triangle-right);
+    transform-origin: center;
+    transform: translateX(var(--triangle-translateY));
+    rotate: var(--triangle-rotation);
+    width: 0;
+    height: 0;
+    border-left: 0.625em solid transparent;
+    border-right: 0.625em solid transparent;
+    border-top: 0.625em solid var(--triangle-border-top-col);
+    border-bottom: 0.625em solid var(--triangle-border-bottom-col);
+}
+
+.account-details {
+    width: 100%;
+    padding: 1em 1.75em;
+    line-height: 1.5;
+    text-align: left;
+    background-color: #f1f1f1;
+    border-radius: var(--default-border-radius);
+    margin-bottom: 1em;
+    display: none;
+}
+
+.overlay {
+    position: absolute;
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    left: 50%;
+    right: 50%;
+    top: 50%;
+    bottom: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+}
+
+#open-conversations {
+    margin: 0.5em;
+}
+
+#close-conversations {
+    margin: 0.5em;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.conversation-chevron {
+    margin: 0.35em;
+    font-size: 1.3em;
+}
+
+#settings-overlay {
+    z-index: 1000;
+}
+
+.settings-panel {
+    position: fixed;
+    top: -100%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70%;
+    height: 70%;
+    border-radius: var(--default-border-radius);
+    overflow: hidden;
+    background-color: #f6f6f6;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.25);
+    transition: top 0.3s ease-in-out;
+    font-size: 1rem;
+    z-index: 1000;
+}
+
+.settings-panel.open {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#open-settings-categories {
+    position: absolute;
+    left: 0;
+    width: 2em;
+    height: 2em;
+    font-size: 0.75em;
+    margin-left: 0.75em;
+}
+
+#open-settings-content {
+    position: absolute;
+    right: 0;
+    width: 2em;
+    height: 2em;
+    font-size: 0.75em;
+    margin-right: 0.75em;
+}
+
+.settings-header {
+    position: fixed;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    right: 0;
+    width: 70%;
+    border-top-right-radius: var(--default-border-radius);
+    transform: translateY(-0.1px);
+    background-color: #ededed;
+    user-select: none;
+}
+
+.settings-categories {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--settings-categories-width);
+    height: 100%;
+    padding: 0.25em;
+    border-top-left-radius: var(--default-border-radius);
+    border-bottom-left-radius: var(--default-border-radius);
+    scroll-padding-top: 20px;
+    background-color: #f6f6f6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+}
+
+@media (orientation: portrait) {
+    .settings-categories {
+        width: 100%;
+    }
+
+    .settings-header {
+        width: 100%;
+    }
+}
+
+.category {
+    width: 95%;
+    padding: 0.75em;
+    border-radius: var(--default-border-radius);
+    margin-bottom: 0.25em;
+    border-bottom: var(--border-width) solid var(--border-color);
+    background-color: #e8e8e800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.category:hover {
+    background-color: #ececec;
+    cursor: pointer;
+}
+
+.category.selected {
+    background-color: #dddddd;
+}
+
+.settings-body {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: calc(100% - var(--settings-categories-width));
+    padding: 0.75em;
+    border-bottom-right-radius: var(--default-border-radius);
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.username-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.username-select {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sub-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    top: 0;
+    border-radius: var(--default-border-radius) var(--default-border-radius) 0 0;
+    width: 100%;
+    height: 2em;
+    background-color: var(--theme);
+    color: #ffffff;
+}
+
+.sub-popup-panel {
+    padding: 1em 2em;
+    border-radius: 0 0 var(--default-border-radius) var(--default-border-radius);
+    width: 23em;
+    height: 10em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #ffffff;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.sub-popup {
+    position: absolute;
+    left: 50%;
+    right: 50%;
+    top: 50%;
+    bottom: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: var(--default-border-radius);
+    width: 23em;
+    height: 12em;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+    transition: opacity 0.2s ease-in-out;
+    z-index: 99999;
+}
+
+.sub-popup.open {
+    display: flex;
+}
+
+.confirm {
+    margin-top: 1em;
+    display: flex;
+}
+
+#confirm-delete-account {
+    width: 10em;
+}
+
+.username-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 1em;
+}
+
+.input-username-identifier {
+    width: 6.5em;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.input-username {
+    width: 8em;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.current-account {
+    width: 100%;
+    padding: 0.5em;
+    background-color: var(--theme);
+    color: #ffffff;
+    border-top-left-radius: 0.5em;
+    border-top-right-radius: 0.5em;
+}
+
+#confirm-delete-account-btn,
+#delete-account {
+    background-color: #d74d4d;
+}
+
+#delete-account {
+    display: none;
+    margin: 0;
+}
+
+#confirm-delete-account-btn:hover,
+#delete-account:hover {
+    background-color: #b13939;
+}
+
+#confirm-delete-account-btn.unavailable {
+    background-color: #dccdcd;
+}
+
+#confirm-delete-account-btn.unavailable:hover {
+    background-color: #dccdcd;
+}
+
+#chat-header {
+    display: flex;
+    height: 3em;
+    border-bottom: var(--border-width) solid var(--border-color);
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+}
+
+#chat-area {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: calc(100vw - var(--conversations-width));
+    height: 100vh;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.scroll-shadow {
+    display: none;
+    position: fixed;
+    background-image: linear-gradient(180deg, #00000025, transparent);
+    right: 0;
+    top: 0;
+    height: 3em;
+}
+
+#chat-shadow {
+    right: 0;
+    width: calc(100vw - var(--conversations-width));
+}
+
+#conversation-shadow {
+    left: 0;
+    width: var(--conversations-width);
+}
+
+#settings-body-shadow {
+    top: 0;
+    right: 0;
+    width: 70%;
+}
+
+#settings-category-shadow {
+    top: 0;
+    left: 0;
+    width: 30%;
+}
+
+.settings-content {
+    position: relative;
+    background-color: #ffffff;
+    border-bottom-right-radius: 0.5em;
+    border-bottom-left-radius: 0.5em;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: 5px solid #ffffff;
+    padding: 1em;
+    padding-top: none;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    overflow-y: scroll;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    text-align: center;
+}
+
+.input-account-username,
+.input-account-password,
+.input-account-confirm-password {
+    width: 100%;
+    min-width: 10em;
+    padding: 1em 1em 1em 1.25em;
+    margin: 10px 0;
+}
+
+.account-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.submit-options {
+    display: flex;
+    align-items: center;
+}
+
+#chat-footer {
+    position: fixed;
+    width: 100%;
+    height: calc(var(--chat-footer-height) + var(--file-info-height));
+    bottom: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #ffffff;
+    border-top: var(--border-width) solid var(--border-color);
+}
+
+.scroll-bottom {
+    position: absolute;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    height: 2em;
+    width: auto;
+    border-radius: 10em;
+    padding: 1em 1.2em;
+    gap: 5px;
+    font-size: 1rem;
+    background-color: #ffffff;
+    transform: translateY(-50px);
+    box-shadow: 0px 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+.scroll-bottom:hover {
+    cursor: pointer !important;
+    animation: newMessages 2s infinite;
+}
+
+.scroll-bottom p {
+    margin-left: 0.25em;
+}
+
+#attached-files {
+    display: flex;
+    height: 90%;
+}
+
+#file-preview {
+    margin: 0 0.5em;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+#file-preview:not(:has(.unsupported-file)) {
+    border: 1px solid var(--border-color);
+}
+
+.file-preview-container {
+    position: relative;
+    display: flex;
+}
+
+.file-preview-information {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.unsupported-file {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    padding: 0.875em;
+    margin: 0 0.5em;
+    background-color: #93a692;
+}
+
+.upload-progress {
+    width: 100%;
+    height: 0.4em;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background: #e0e0e0;
+    overflow: hidden;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--theme);
+    transition: width 0.2s ease;
+}
+
+#remove-file {
+    position: absolute;
+    font-size: 0.5rem;
+    right: 0;
+    top: 0;
+    width: 1em;
+    height: 1em;
+    margin: 0.2em;
+    padding: 1.25em;
+    border-radius: 100em;
+    background-color: #a8a8a8;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    overflow: hidden;
+    transform: translateY(-1em);
+}
+
+.chat-functions {
+    width: 100%;
+}
+
+.chat {
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    height: var(--chat-footer-height);
+    padding: 2px;
+    width: 100%;
+    overflow-x: auto;
+}
+
+.chat-functions #file-information {
+    display: flex;
+    align-items: center;
+    border-bottom: var(--border-width) solid var(--border-color);
+    background-color: var(--background-color);
+    height: var(--file-info-height);
+    width: calc(100vw - var(--conversations-width));
+    overflow-x: auto;
+    padding: 0.3em;
+}
+
+.container,
+.input-group-container {
+    display: flex;
+    position: relative;
+    align-items: center;
+}
+
+.chat .container,
+.chat .input-group-container {
+    position: unset;
+}
+
+.input-btn {
+    margin-right: 0.75em;
+}
+
+#chat-options {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#chat-message-input {
+    font-size: 0.9rem;
+    padding: 0.625em 1.5em;
+    padding-right: 3.125em;
+    width: calc(43.75em + ((100vw - var(--conversations-width)) - 50em - 6.875em));
+    height: 3.125em;
+}
+
+#attach-file {
+    height: 2.15em;
+    width: 2.15em;
+    font-size: 1.3em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#send-message {
+    position: absolute;
+    right: 0;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transform: translateX(-45px);
+}
+
+.unavailable {
+    background-color: var(--unavailable);
+    cursor: default !important;
+}
+
+.available {
+    background-color: var(--theme);
+    cursor: pointer;
+}
+
+#chat-conversations {
+    width: var(--conversations-width);
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: var(--background-color);
+    border-right: var(--border-width) solid var(--border-color);
+    font-size: 1em;
+}
+
+#chat-conversations.active {
+    opacity: 1;
+    display: block;
+}
+
+#chat-conversations.innactive {
+    opacity: 0;
+    display: none;
+}
+
+#chat-conversations-header {
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-bottom: var(--border-width) solid var(--border-color);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-size: 0.9rem;
+}
+
+#add-conversation-error {
+    color: #ff0000;
+    margin: 0.25em;
+    font-size: 0.8rem;
+}
+
+#user-id-input {
+    font-size: 0.8rem;
+    padding: 0.625em 1.5em;
+    padding-right: 3.125em;
+    width: calc(var(--conversations-width) - 3.125em);
+    height: 2.5em;
+}
+
+#add-user {
+    position: absolute;
+    font-size: 0.8rem;
+    width: 1.5625em;
+    height: 1.5625em;
+    right: 0;
+}
+
+.conversation,
+.conversation-selected {
+    padding: 0.25em 0.5em;
+    border-radius: var(--default-border-radius);
+    margin-bottom: 0.25em;
+    text-align: left;
+    border-bottom: var(--border-width) solid var(--border-color);
+    display: flex;
+    font-size: 0.8rem;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.conversation-selected {
+    background-color: #e1e1e1;
+}
+
+#emoji-button {
+    height: 2.15em;
+    width: 2.15em;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+#files {
+    display: flex;
+    flex-direction: column;
+    margin: 0.125em 0;
+}
+
+#open-file {
+    display: flex;
+    flex-direction: column;
+    padding: 0.875em;
+    max-width: 18.75em;
+    max-height: 18.75em;
+    min-width: 100px;
+    min-height: 1.875em;
+    border-radius: 0.625em;
+    margin-bottom: 0.125em;
+    background-color: #93a692;
+    text-decoration: none;
+    outline: white;
+    justify-content: center;
+}
+
+.file-name {
+    font-size: 0.875rem;
+    color: #ffffff;
+}
+
+.message-container.from-me .file-name {
+    margin-left: 2em;
+}
+
+.message-container.from-me #files {
+    align-items: end;
+}
+
+.message-container.from-others #files {
+    align-items: start;
+}
+
+.message-container.from-others .file-name {
+    margin-right: 2em;
+}
+
+.file-size {
+    font-size: 0.675rem;
+    color: #dddddd;
+}
+
+#files img {
+    max-width: 18.75em;
+    max-height: 18.75em;
+    height: auto;
+    width: auto;
+    object-fit: cover;
+    margin: 0 auto;
+    border-radius: 0.625em;
+}
+
+#files video {
+    max-width: 18.75em;
+    max-height: 18.75em;
+    height: auto;
+    width: auto;
+    object-fit: cover;
+    margin: 0 auto;
+    border-radius: 0.625em;
+}
+
+#emoji-menu {
+    display: none;
+    position: absolute;
+    top: 2.5em;
+    left: 0;
+    background-color: var(--background-color);
+    border: 0.0625em solid #cccccc;
+    border-radius: 0.3125em;
+    box-shadow: 0 0.25em 0.5em rgba(0, 0, 0, 0.2);
+    padding: 0.625em;
+    max-height: 16.25em;
+    width: 20.625em;
+    z-index: 9999;
+}
+
+#emoji-picker {
+    overflow-y: scroll;
+    max-height: 12.5em;
+    background-color: #f1f1f1;
+    border-radius: 0.3125em;
+    padding: 0.3125em;
+    padding-right: 0;
+}
+
+.menus {
+    margin: 0px 0.625em;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.625em;
+}
+
+.tab {
+    width: 1.875em;
+    height: 1.875em;
+    color: #000000;
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f1f1f1;
+    border-radius: 0.3125em;
+    font-size: 0.875rem;
+}
+
+.tab.selected {
+    background-color: #dddddd;
+}
+
+.tab-content {
+    display: none;
+}
+
+.emoji-option {
+    display: inline-block;
+    line-height: 130%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.3125em;
+    margin: 0;
+}
+
+.emoji-option:hover {
+    background-color: #dddddd;
+    border-radius: 0.3125em;
+}
+
+#emoji-picker.active {
+    display: block;
+}
+
+#chat-body {
+    text-align: left;
+    width: 100%;
+    height: calc(100vh - var(--chat-footer-height) - var(--file-info-height) - var(--chat-header-height));
+    padding: 0.625em;
+    overflow-y: scroll;
+    background: #f5f5f5;
+    opacity: 1;
+    display: block;
+    position: absolute;
+    right: 0;
+}
+
+.message {
+    padding: 0.375em 0.625em;
+    position: relative;
+    border-radius: 1.25em;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(250, 243, 243, 0.1);
+    max-width: 80%;
+    display: inline-block;
+    word-wrap: break-word;
+    font-size: var(--message-font-size, var(--default-font-size));
+    text-align: center;
+}
+
+.message span {
+    user-select: text;
+}
+
+.timestamp {
+    font-size: 0.75rem;
+    margin-right: 5px;
+    margin-top: 5px;
+    color: #7a7a7a;
+}
+
+.timestamp.new-day {
+    margin: 0.8em 0;
+    font-weight: bold;
+    text-align: center;
+}
+
+.sender-status.online {
+    color: #26c528;
+}
+
+.sender-status.offline {
+    color: #c52626;
+}
+
+.sender {
+    position: relative;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: #6a6a6a;
+}
+
+.timestamp,
+.sender,
+#scroll-bottom-new,
+.conversation,
+.conversation-selected,
+#emoji-menu {
+    cursor: default;
+    user-select: none;
+}
+
+#conversation-parent {
+    position: relative;
+    padding: 0.25em;
+    overflow-y: scroll;
+}
+
+.message-container.from-me {
+    text-align: right;
+}
+
+.message-container.from-me .message {
+    background: #d1e7d0;
+}
+
+.message-container.from-others {
+    text-align: left;
+}
+
+.message-container.from-others .message {
+    background: #dedede;
+    display: inline-block;
+}
+
+.conversation:hover {
+    background-color: #eeeeee;
+    cursor: pointer;
+}
+
+#open-file:hover {
+    cursor: pointer;
+}
+
+#open-file:hover .file-name {
+    text-decoration: underline;
+    text-decoration-color: #ffffff;
+    text-underline-offset: 1px;
+    text-decoration-thickness: 1px;
+}
+
+.tab:hover {
+    background-color: #dddddd;
+}
+
+.unavailable:hover {
+    background-color: var(--unavailable);
+}
+
+#remove-file:hover {
+    background-color: #8c8c8c;
+}
+
+button:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0.4s;
+}
+
+/* Animations */
+
+@keyframes newMessages {
+    0% {
+        transform: translateY(-50px);
+    }
+
+    40% {
+        transform: translateY(-50px);
+    }
+
+    45% {
+        transform: translateY(-47px);
+    }
+
+    57% {
+        transform: translateY(-53px);
+    }
+
+    65% {
+        transform: translateY(-47px);
+    }
+
+    70% {
+        transform: translateY(-50px);
+    }
+
+    100% {
+        transform: translateY(-50px);
+    }
+}
+
+@keyframes loader-rotate {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+
+@keyframes loader-counter-rotate {
+    0% {
+        transform: rotate(360deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
