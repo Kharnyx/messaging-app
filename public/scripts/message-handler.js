@@ -78,7 +78,7 @@ window.connectWebSocket = function () {
     console.error("WebSocket error:", error);
 
     // When the app cannot connect to the server, display a different message and add a disconnected class
-    loadingMessage.innerHTML = "Cannot Connect To Server";
+    loadingMessage.innerHTML = "Connection Failure";
     loadingContainer.classList.add("disconnected");
 
     // Wait 2 seconds and then remove the loader
@@ -89,12 +89,9 @@ window.connectWebSocket = function () {
 
       setTimeout(() => {
         // Wait 0.5 seconds and move the loading message to the center of the page
-        loadingMessage.style.transform = `translateY(
-    -${loadingMessage.getBoundingClientRect().top +
-          loadingMessage.offsetHeight / 2 -
-          window.innerHeight / 2}px)`;
+        loadingMessage.style.transform = "translate(-50%, -50%)";
       }, 500);
-    }, 2000);
+    }, 1500);
 
     console.log("Connection failure");
   };
