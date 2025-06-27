@@ -7,7 +7,7 @@
     --background-color: #ffffff;
     --border-width: 0.125em;
     --button-hover-duration: 0.3s;
-    --conversations-width: 28.12vw;
+    --conversations-width: 28.12dvw;
     --chat-header-height: 3.25em;
     --chat-footer-height: 5em;
     --file-info-height: 3em;
@@ -158,8 +158,8 @@ a:hover {
 }
 
 .loading-container {
-    width: 100vw;
-    height: 100vh;
+    width: 100dvw;
+    height: 100dvh;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -291,8 +291,8 @@ a:hover {
 .overlay {
     position: absolute;
     display: none;
-    width: 100vw;
-    height: 100vh;
+    width: 100dvw;
+    height: 100dvh;
     left: 50%;
     right: 50%;
     top: 50%;
@@ -572,8 +572,8 @@ a:hover {
     position: fixed;
     top: 0;
     right: 0;
-    width: calc(100vw - var(--conversations-width));
-    height: 100vh;
+    width: calc(100dvw - var(--conversations-width));
+    height: 100dvh;
     text-align: center;
     margin: 0;
     padding: 0;
@@ -590,7 +590,7 @@ a:hover {
 
 #chat-shadow {
     right: 0;
-    width: calc(100vw - var(--conversations-width));
+    width: calc(100dvw - var(--conversations-width));
 }
 
 #conversation-shadow {
@@ -784,7 +784,7 @@ a:hover {
     border-bottom: var(--border-width) solid var(--border-color);
     background-color: var(--background-color);
     height: var(--file-info-height);
-    width: calc(100vw - var(--conversations-width));
+    width: calc(100dvw - var(--conversations-width));
     overflow-x: auto;
     padding: 0.3em;
 }
@@ -815,7 +815,7 @@ a:hover {
     font-size: 0.9rem;
     padding: 0.625em 1.5em;
     padding-right: 3.125em;
-    width: calc(43.75em + ((100vw - var(--conversations-width)) - 50em - 6.875em));
+    width: calc(43.75em + ((100dvw - var(--conversations-width)) - 50em - 6.875em));
     height: 3.125em;
 }
 
@@ -851,7 +851,7 @@ a:hover {
 
 #chat-conversations {
     width: var(--conversations-width);
-    height: 100vh;
+    height: 100dvh;
     position: absolute;
     top: 0;
     left: 0;
@@ -1074,7 +1074,7 @@ a:hover {
 #chat-body {
     text-align: left;
     width: 100%;
-    height: calc(100vh - var(--chat-footer-height) - var(--file-info-height) - var(--chat-header-height));
+    height: calc(100dvh - var(--chat-footer-height) - var(--file-info-height) - var(--chat-header-height));
     padding: 0.625em;
     overflow-y: scroll;
     background: #f5f5f5;
