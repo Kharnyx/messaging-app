@@ -714,6 +714,7 @@ window.sendMessage = debounce(() => {
   const formData = new FormData();
 
   formData.append("senderId", userId);
+  formData.append("token", token);
   formData.append("senderName", currentUser);
   formData.append("text", cleanedMessage);
   formData.append("timestamp", now);
